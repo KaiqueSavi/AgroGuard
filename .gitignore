@@ -1,0 +1,70 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Dados grandes (manter apenas o sample no repo)
+data/raw/
+data/processed/
+data/*.parquet
+data/large_*.csv
+
+# Modelos serializados
+models/*.pkl
+models/*.joblib
+mlruns/
+
+# Logs
+*.log
+logs/
+
+# Configurações sensíveis
+.env
+.env.local
+secrets.yaml
+*.pem
+*.key
+
+# Cobertura de testes
+.coverage
+htmlcov/
+.pytest_cache/
+.tox/
