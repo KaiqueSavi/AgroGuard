@@ -1,0 +1,59 @@
+======================================================================
+AgroGuard IA — Análise Exploratória de Dados (EDA)
+======================================================================
+Registros: 10,000 | Colunas: 26
+Período: 2026-01-01 05:00:08 → 2026-04-30 21:52:58
+Equipamentos distintos: 50
+Taxa global de sinistro: 10.57%
+
+Distribuição por classe de risco:
+classe_risco
+Baixo      5517
+Medio      3907
+Alto        533
+Critico      43
+
+----------------------------------------------------------------------
+Correlação das features com risco_score (Pearson | Spearman):
+----------------------------------------------------------------------
+                           pearson  spearman
+umidade_solo                 0.837     0.594
+precip_24h_mm                0.828     0.596
+precip_prev_6h_mm            0.703     0.471
+jornada_acumulada_h          0.200     0.216
+dist_corpo_dagua_m          -0.178    -0.265
+dias_desde_manutencao        0.169     0.222
+declividade_pct              0.121     0.147
+vento_max_kmh                0.070     0.084
+experiencia_operador_anos   -0.064    -0.106
+vibracao_g                   0.059     0.082
+velocidade_kmh              -0.015    -0.007
+idade_equipamento_anos       0.013     0.007
+inclinacao_graus            -0.003     0.009
+
+----------------------------------------------------------------------
+Correlação das features com ocorrência de sinistro (0/1):
+----------------------------------------------------------------------
+umidade_solo                 0.291
+precip_24h_mm                0.289
+precip_prev_6h_mm            0.242
+jornada_acumulada_h          0.071
+declividade_pct              0.051
+dias_desde_manutencao        0.044
+dist_corpo_dagua_m          -0.038
+vento_max_kmh                0.031
+experiencia_operador_anos   -0.020
+velocidade_kmh              -0.020
+vibracao_g                   0.019
+idade_equipamento_anos      -0.014
+inclinacao_graus             0.002
+
+----------------------------------------------------------------------
+Risco por faixa de proximidade de corpo d'água:
+----------------------------------------------------------------------
+                   leituras  score_medio  taxa_sinistro_pct
+faixa_agua                                                 
+0-50 m (crítico)        533        36.19              12.20
+50-200 m (alto)        3668        34.80              11.61
+200-500 m (médio)      3441        32.52              10.78
+> 500 m (baixo)        2358        28.01               8.27

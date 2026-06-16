@@ -47,9 +47,12 @@ data/processed/
 data/*.parquet
 data/large_*.csv
 
-# Modelos serializados
+# Modelos serializados (reprodutíveis via ml/train.py — não versionar)
 models/*.pkl
 models/*.joblib
+ml/models/
+*.joblib
+*.pkl
 mlruns/
 
 # Logs

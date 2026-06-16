@@ -4,6 +4,105 @@
 
 ---
 
+## Arquitetura Consolidada — Sprint 2 (implementação atual)
+
+> 🎯 Esta seção documenta o que **de fato foi implementado e está rodando** na Sprint 2 (entrega 2 de 4 do Challenge Sompo Seguros × FIAP). As seções 1 a 8 descrevem a **arquitetura-alvo** (visão de produto na nuvem); aqui descrevemos o **protótipo executável** local que valida essa visão.
+>
+> O foco da Sprint 2 são as User Stories **US01** (operador recebe alertas), **US04** (gestor vê mapa/ranking de risco) e **US07** (Sompo consulta score histórico).
+
+### Pipeline real implementado
+
+```mermaid
+flowchart TB
+    GEN["data/generate_dataset.py<br/>--seed 42"]
+    CSV[("data/synthetic_dataset.csv<br/>10.000 linhas × 26 colunas")]
+    LOAD["ml/load_to_db.py"]
+
+    subgraph DB["🐘 PostgreSQL 16 (docker-compose · serviço db)"]
+        direction TB
+        T_EQ["equipamentos"]
+        T_TEL["leituras_telemetria"]
+        T_SIN["sinistros"]
+        T_SCORE["scores_risco"]
+        VIEW["view vw_risco_completo"]
+    end
+
+    subgraph TRAIN["ml/train.py · scikit-learn (seed=42)"]
+        direction TB
+        M_CLASSE["GradientBoosting<br/>classe_risco (PRINCIPAL)<br/>F1-macro 0,6632 / acc 0,8547"]
+        M_SCORE["GradientBoostingRegressor<br/>risco_score 0–100<br/>R² 0,9361 / RMSE 3,39"]
+        M_SIN["RandomForest balanced<br/>sinistro 0/1 (complementar)<br/>AUC 0,7489"]
+    end
+
+    PRED["ml/predict.py"]
+    EDA["ml/eda.py"]
+    FIG[("reports/figures/*.png")]
+
+    subgraph CONSUMO["Consumo (US01 · US04 · US07)"]
+        direction TB
+        QUERIES["sql/queries.sql<br/>Q1..Q6"]
+        DASH["app/streamlit_app.py<br/>dashboard do gestor"]
+        ALERTA{{"🚨 Alerta<br/>score >= 80"}}
+    end
+
+    GEN --> CSV --> LOAD
+    LOAD --> T_EQ
+    LOAD --> T_TEL
+    LOAD --> T_SIN
+    T_EQ --> TRAIN
+    T_TEL --> TRAIN
+    T_SIN --> TRAIN
+    TRAIN --> M_CLASSE & M_SCORE & M_SIN
+    M_CLASSE & M_SCORE & M_SIN --> PRED
+    PRED --> T_SCORE
+    T_SCORE --> VIEW
+    T_TEL --> VIEW
+    T_EQ --> VIEW
+    VIEW --> QUERIES
+    VIEW --> DASH
+    T_SCORE --> ALERTA
+    T_TEL --> EDA --> FIG
+    FIG --> DASH
+```
+
+> ▶️ O pipeline completo é orquestrado por `run_pipeline.sh` (gera dataset → sobe banco → treina → prediz → carrega scores → roda queries), e a execução registrada está em `docs/prints/execucao_pipeline.txt`.
+
+### Componente → Tecnologia → Arquivo
+
+| Etapa do pipeline | Tecnologia | Arquivo real |
+|---|---|---|
+| Geração de dados sintéticos | Python (NumPy / pandas), `--seed 42` | `data/generate_dataset.py` → `data/synthetic_dataset.csv` |
+| Schema do banco (DDL) | SQL · PostgreSQL 16 | `sql/schema.sql` |
+| Carga do CSV no banco | Python + psycopg | `ml/load_to_db.py` |
+| Banco de dados | PostgreSQL 16 (docker-compose, serviço `db`) | `docker-compose.yml`, `.env.example` |
+| Acesso ao banco | Camada de conexão Python | `ml/db.py` |
+| Engenharia de features | ColumnTransformer (OneHot nas categóricas, numéricas passthrough) | `ml/features.py` |
+| Treino dos 3 modelos | scikit-learn (GradientBoosting classe + score, RandomForest sinistro) | `ml/train.py` → `ml/models/clf_classe.joblib`, `reg_score.joblib`, `clf_sinistro.joblib` |
+| Inferência e persistência de scores | Python + joblib | `ml/predict.py` → tabela `scores_risco` |
+| Consultas analíticas / validação de negócio | SQL (Q1..Q6) | `sql/queries.sql`, executadas por `ml/run_queries.py` |
+| Análise exploratória e figuras | matplotlib / seaborn | `ml/eda.py` → `reports/figures/*.png` |
+| Dashboard do gestor | Streamlit | `app/streamlit_app.py` |
+| Orquestração ponta a ponta | Bash | `run_pipeline.sh` |
+| Dependências | pip | `requirements.txt` |
+
+**Features do modelo (X):** 13 numéricas + 3 categóricas (`tipo_equip`, `tipo_operacao`, `turno`). Os alvos e seus derivados (`risco_score`, `classe_risco`, `sinistro`, `tipo_sinistro`, `severidade_sinistro`) **não** entram em X (anti-vazamento), e `latitude`/`longitude` ficam **fora do modelo** — mantidas apenas para o mapa. O split é estratificado 70/15/15 por `classe_risco` (treino=7000, validação=1500, teste=1500).
+
+### Como o protótipo Sprint 2 se relaciona com a arquitetura-alvo (AWS/MQTT)
+
+O protótipo é um **espelho local e simplificado** da arquitetura de produção descrita nas seções seguintes. Cada peça da Sprint 2 corresponde a um componente da nuvem:
+
+| Protótipo Sprint 2 (local) | Arquitetura-alvo (seções 1–8) | Equivalência |
+|---|---|---|
+| PostgreSQL 16 via `docker-compose` (serviço `db`) | PostgreSQL + PostGIS no RDS (Multi-AZ) | **Mesmo banco**; em produção ganha a extensão PostGIS para consultas geoespaciais e alta disponibilidade |
+| `data/synthetic_dataset.csv` carregado por `ml/load_to_db.py` | Telemetria IoT via broker MQTT (Mosquitto) → ETL | O **CSV simula a telemetria IoT**; cada linha equivale a uma leitura de sensor que, em produção, chega por MQTT |
+| `app/streamlit_app.py` (Streamlit) | Dashboard Web do gestor (React + Vite + Mapbox) | **Mesmo papel de produto** — o dashboard Streamlit é o protótipo do dashboard web do gestor (US04) |
+| `ml/train.py` + `ml/predict.py` (scikit-learn) | Camada de IA (modelos versionados via MLflow, servidos por FastAPI) | Mesmos modelos baseados em árvores; em produção entram versionamento e serving |
+| Alerta por `score >= 80` consultando `scores_risco` | Push via FastAPI + Firebase Cloud Messaging | Mesma **regra de negócio de alerta** (limiar 80); o canal de entrega evolui para push (US01) |
+
+> Em resumo: o **banco local Postgres é o Postgres/PostGIS da nuvem**, o **CSV simula a telemetria IoT** e o **dashboard Streamlit é o dashboard web do gestor**. A Sprint 2 prova a cadeia *dados → features → modelo → score → alerta/dashboard* de ponta a ponta, sem depender ainda da infraestrutura AWS.
+
+---
+
 ## 1. Visão de alto nível
 
 O AgroGuard IA segue uma arquitetura em camadas bem definidas, com separação clara entre **coleta**, **processamento**, **inteligência** e **interface**. Essa separação permite:
@@ -284,10 +383,10 @@ flowchart LR
 
 ## 8. Roadmap de evolução da arquitetura
 
-| Sprint | Evolução |
-|---|---|
-| 1 | Arquitetura proposta (este doc) |
-| 2 | PoC local com Docker Compose, modelo treinado em dataset simulado |
-| 3 | API real + simulador IoT + integração com clima real |
-| 4 | Deploy em staging na AWS, dashboard funcional, demo end-to-end |
-| Pós-Challenge | Edge real, retreino automático, integração com core Sompo |
+| Sprint | Evolução | Status |
+|---|---|---|
+| 1 | Arquitetura proposta (este doc) | ✅ Concluída |
+| 2 | PoC local com Docker Compose, modelo treinado em dataset simulado | ✅ Concluída (ver seção "Arquitetura Consolidada — Sprint 2") |
+| 3 | API real + simulador IoT + integração com clima real | ⏳ Planejada |
+| 4 | Deploy em staging na AWS, dashboard funcional, demo end-to-end | ⏳ Planejada |
+| Pós-Challenge | Edge real, retreino automático, integração com core Sompo | 🔭 Futuro |
