@@ -1,0 +1,149 @@
+{
+  "modelo_versao": "v0.2",
+  "seed": 42,
+  "dataset": {
+    "linhas": 10000,
+    "treino": 7000,
+    "validacao": 1500,
+    "teste": 1500,
+    "distribuicao_classe": {
+      "Baixo": 5517,
+      "Medio": 3907,
+      "Alto": 533,
+      "Critico": 43
+    },
+    "taxa_sinistro_pct": 10.57
+  },
+  "classificador_classe": {
+    "modelo": "GradientBoosting",
+    "accuracy_test": 0.8547,
+    "f1_macro_test": 0.6632,
+    "recall_critico_test": 0.1667,
+    "precision_critico_test": 0.25,
+    "cv_f1_macro_mean": 0.5813,
+    "cv_f1_macro_std": 0.0081,
+    "confusion_matrix": [
+      [
+        753,
+        75,
+        0,
+        0
+      ],
+      [
+        100,
+        468,
+        18,
+        0
+      ],
+      [
+        0,
+        17,
+        60,
+        3
+      ],
+      [
+        0,
+        1,
+        4,
+        1
+      ]
+    ],
+    "confusion_labels": [
+      "Baixo",
+      "Medio",
+      "Alto",
+      "Critico"
+    ],
+    "classification_report": {
+      "Baixo": {
+        "precision": 0.8827667057444314,
+        "recall": 0.9094202898550725,
+        "f1-score": 0.8958953004164188,
+        "support": 828.0
+      },
+      "Medio": {
+        "precision": 0.8342245989304813,
+        "recall": 0.7986348122866894,
+        "f1-score": 0.8160418482999128,
+        "support": 586.0
+      },
+      "Alto": {
+        "precision": 0.7317073170731707,
+        "recall": 0.75,
+        "f1-score": 0.7407407407407407,
+        "support": 80.0
+      },
+      "Critico": {
+        "precision": 0.25,
+        "recall": 0.16666666666666666,
+        "f1-score": 0.2,
+        "support": 6.0
+      },
+      "accuracy": 0.8546666666666667,
+      "macro avg": {
+        "precision": 0.6746746554370209,
+        "recall": 0.6561804422021071,
+        "f1-score": 0.663169472364268,
+        "support": 1500.0
+      },
+      "weighted avg": {
+        "precision": 0.8532153551303366,
+        "recall": 0.8546666666666667,
+        "f1-score": 0.853640727405202,
+        "support": 1500.0
+      }
+    },
+    "comparacao_modelos": {
+      "RandomForest": {
+        "f1_macro_val": 0.6258,
+        "accuracy_val": 0.8687
+      },
+      "GradientBoosting": {
+        "f1_macro_val": 0.6765,
+        "accuracy_val": 0.8707
+      }
+    }
+  },
+  "regressor_score": {
+    "rmse_test": 3.391,
+    "mae_test": 2.66,
+    "r2_test": 0.9361
+  },
+  "classificador_sinistro": {
+    "auc_test": 0.7489,
+    "f1_test": 0.3099,
+    "recall_test": 0.2308
+  },
+  "correlacao_score": {
+    "umidade_solo": 0.837,
+    "precip_24h_mm": 0.828,
+    "precip_prev_6h_mm": 0.703,
+    "jornada_acumulada_h": 0.2,
+    "dias_desde_manutencao": 0.169,
+    "declividade_pct": 0.121,
+    "vento_max_kmh": 0.07,
+    "vibracao_g": 0.059,
+    "idade_equipamento_anos": 0.013,
+    "inclinacao_graus": -0.003,
+    "velocidade_kmh": -0.015,
+    "experiencia_operador_anos": -0.064,
+    "dist_corpo_dagua_m": -0.178
+  },
+  "feature_importance_top15": {
+    "precip_24h_mm": 0.4489,
+    "jornada_acumulada_h": 0.1579,
+    "dist_corpo_dagua_m": 0.0764,
+    "turno_noite": 0.0676,
+    "dias_desde_manutencao": 0.066,
+    "umidade_solo": 0.0498,
+    "declividade_pct": 0.041,
+    "precip_prev_6h_mm": 0.0353,
+    "experiencia_operador_anos": 0.0177,
+    "vibracao_g": 0.0134,
+    "vento_max_kmh": 0.012,
+    "tipo_operacao_transporte": 0.0067,
+    "inclinacao_graus": 0.003,
+    "velocidade_kmh": 0.0019,
+    "idade_equipamento_anos": 0.0009
+  }
+}

@@ -1,0 +1,258 @@
+════════════════════════════════════════════════════════════════
+  AgroGuard IA — Pipeline Sprint 2
+════════════════════════════════════════════════════════════════
+
+▶ [1/7] Subindo PostgreSQL (Docker)…
+ Container agroguard_db Running 
+  ✔ banco pronto
+
+▶ [2/7] Gerando dataset simulado (seed=42)…
+🔄 Gerando 10,000 registros (seed=42)...
+✅ Dataset salvo em: /Users/kaiquesavi/Documents/Github/agroguard-sprint2/data/synthetic_dataset.csv
+   Linhas: 10,000 | Colunas: 26
+
+📊 Distribuição por classe de risco:
+classe_risco
+Baixo      5517
+Medio      3907
+Alto        533
+Critico      43
+
+📊 Taxa de sinistros: 10.57%
+
+📊 Tipos de sinistro (apenas sinistros):
+tipo_sinistro
+colisao       389
+atolamento    266
+tombamento    214
+mecanico      188
+
+▶ [3/7] Ingestão do CSV no PostgreSQL…
+📂 10,000 linhas lidas de /Users/kaiquesavi/Documents/Github/agroguard-sprint2/data/synthetic_dataset.csv
+   ✅ equipamentos:            50
+   ✅ leituras_telemetria: 10,000
+   ✅ sinistros:           10,000
+   • equipamentos           = 50 linhas
+   • leituras_telemetria    = 10,000 linhas
+   • sinistros              = 10,000 linhas
+✅ Ingestão concluída.
+
+▶ [4/7] Análise exploratória (EDA)…
+======================================================================
+AgroGuard IA — Análise Exploratória de Dados (EDA)
+======================================================================
+Registros: 10,000 | Colunas: 26
+Período: 2026-01-01 05:00:08 → 2026-04-30 21:52:58
+Equipamentos distintos: 50
+Taxa global de sinistro: 10.57%
+
+Distribuição por classe de risco:
+classe_risco
+Baixo      5517
+Medio      3907
+Alto        533
+Critico      43
+
+----------------------------------------------------------------------
+Correlação das features com risco_score (Pearson | Spearman):
+----------------------------------------------------------------------
+                           pearson  spearman
+umidade_solo                 0.837     0.594
+precip_24h_mm                0.828     0.596
+precip_prev_6h_mm            0.703     0.471
+jornada_acumulada_h          0.200     0.216
+dist_corpo_dagua_m          -0.178    -0.265
+dias_desde_manutencao        0.169     0.222
+declividade_pct              0.121     0.147
+vento_max_kmh                0.070     0.084
+experiencia_operador_anos   -0.064    -0.106
+vibracao_g                   0.059     0.082
+velocidade_kmh              -0.015    -0.007
+idade_equipamento_anos       0.013     0.007
+inclinacao_graus            -0.003     0.009
+
+----------------------------------------------------------------------
+Correlação das features com ocorrência de sinistro (0/1):
+----------------------------------------------------------------------
+umidade_solo                 0.291
+precip_24h_mm                0.289
+precip_prev_6h_mm            0.242
+jornada_acumulada_h          0.071
+declividade_pct              0.051
+dias_desde_manutencao        0.044
+dist_corpo_dagua_m          -0.038
+vento_max_kmh                0.031
+experiencia_operador_anos   -0.020
+velocidade_kmh              -0.020
+vibracao_g                   0.019
+idade_equipamento_anos      -0.014
+inclinacao_graus             0.002
+
+----------------------------------------------------------------------
+Risco por faixa de proximidade de corpo d'água:
+----------------------------------------------------------------------
+                   leituras  score_medio  taxa_sinistro_pct
+faixa_agua                                                 
+0-50 m (crítico)        533        36.19              12.20
+50-200 m (alto)        3668        34.80              11.61
+200-500 m (médio)      3441        32.52              10.78
+> 500 m (baixo)        2358        28.01               8.27
+
+✅ Resumo salvo em /Users/kaiquesavi/Documents/Github/agroguard-sprint2/reports/eda_summary.txt
+✅ Figuras em /Users/kaiquesavi/Documents/Github/agroguard-sprint2/reports/figures
+
+▶ [5/7] Treino + validação dos modelos…
+📂 Carregando dataset: /Users/kaiquesavi/Documents/Github/agroguard-sprint2/data/synthetic_dataset.csv
+   10,000 linhas × 26 colunas
+
+📊 Gerando figuras exploratórias (correlação, distribuição)...
+
+🔀 Split estratificado: treino=7000  val=1500  teste=1500
+
+🧠 [1/3] Classificador de classe de risco
+   • RandomForest       F1-macro(val)=0.6258  acc(val)=0.8687
+   • GradientBoosting   F1-macro(val)=0.6765  acc(val)=0.8707
+   → Escolhido: GradientBoosting (F1-macro val=0.6765)
+
+   Matriz de confusão (teste):
+   [[753  75   0   0]
+    [100 468  18   0]
+    [  0  17  60   3]
+    [  0   1   4   1]]
+
+              precision    recall  f1-score   support
+
+       Baixo       0.88      0.91      0.90       828
+       Medio       0.83      0.80      0.82       586
+        Alto       0.73      0.75      0.74        80
+     Critico       0.25      0.17      0.20         6
+
+    accuracy                           0.85      1500
+   macro avg       0.67      0.66      0.66      1500
+weighted avg       0.85      0.85      0.85      1500
+
+
+🧠 [2/3] Regressor de score (0-100)
+   RMSE=3.39  MAE=2.66  R²=0.9361
+
+🧠 [3/3] Classificador de sinistro (binário, complementar)
+   AUC=0.7489  F1=0.3099  recall=0.2308
+
+✅ Treino concluído.
+   Modelos:  /Users/kaiquesavi/Documents/Github/agroguard-sprint2/ml/models
+   Figuras:  /Users/kaiquesavi/Documents/Github/agroguard-sprint2/reports/figures
+   Métricas: /Users/kaiquesavi/Documents/Github/agroguard-sprint2/reports/metrics.json
+
+▶ [6/7] Inferência → grava scores no banco…
+📥 10,000 leituras lidas do banco
+   ✅ 10,000 scores gravados em scores_risco
+   🚨 26 alertas (score >= 80)
+   Distribuição de classe prevista:
+classe_risco
+Baixo      5729
+Medio      3722
+Alto        510
+Critico      39
+✅ Inferência concluída.
+
+▶ [7/7] Consultas analíticas de risco…
+
+==============================================================================
+  Q1 — Ranking dos equipamentos mais arriscados (US04)
+==============================================================================
+equip_id    tipo_equip  leituras  score_medio  score_pico  alertas_criticos  sinistros_reais
+  EQ-043  Pulverizador       182         34.3          77                 0               24
+  EQ-019        Trator       207         34.0          76                 0               27
+  EQ-006 Colheitadeira       211         34.0          87                 1               22
+  EQ-034      Caminhão       190         33.7          73                 0               18
+  EQ-002  Pulverizador       250         33.5          78                 0               32
+  EQ-026 Colheitadeira       197         33.4          86                 1               31
+  EQ-015        Trator       213         33.4          74                 0               21
+  EQ-040 Colheitadeira       210         33.4          78                 0               20
+  EQ-025 Colheitadeira       160         33.3          81                 2               24
+  EQ-022        Trator       210         33.2          78                 0               24
+
+==============================================================================
+  Q2 — Histórico de risco do equipamento EQ-014 (US07)
+==============================================================================
+          data_hora  risco_score classe_risco  alerta  precip_24h_mm  umidade_solo  dist_corpo_dagua_m  sinistro tipo_sinistro
+2026-01-03 00:04:41           45        Medio   False           18.7          0.39                 158     False           NaN
+2026-01-04 04:11:12           34        Medio   False            3.6          0.17                 319     False           NaN
+2026-01-05 05:11:53           28        Baixo   False            4.6          0.38                 209      True    tombamento
+2026-01-05 07:42:18           30        Baixo   False            3.4          0.29                 249     False           NaN
+2026-01-06 14:02:09           28        Baixo   False            3.3          0.21                 124     False           NaN
+2026-01-07 09:50:09           25        Baixo   False            2.5          0.23                  74     False           NaN
+2026-01-07 14:16:38           19        Baixo   False            1.1          0.23                 543     False           NaN
+2026-01-07 16:17:52           73         Alto   False           71.8          0.98                  46     False           NaN
+2026-01-08 18:56:33           36        Medio   False            2.4          0.26                  41     False           NaN
+2026-01-09 09:21:48           24        Baixo   False            3.9          0.21                 369     False           NaN
+2026-01-09 20:01:33           46        Medio   False           28.3          0.47                 250     False           NaN
+2026-01-10 02:06:46           46        Medio   False           20.5          0.45                 372      True    atolamento
+2026-01-11 06:39:48           22        Baixo   False            1.5          0.13                 123     False           NaN
+2026-01-13 01:19:24           29        Baixo   False            4.4          0.28                  52     False           NaN
+2026-01-13 16:42:01           38        Medio   False           32.9          0.55                 480     False           NaN
+2026-01-14 06:58:04           29        Baixo   False            1.3          0.25                  98     False           NaN
+2026-01-14 16:49:54           27        Baixo   False            6.7          0.25                 345     False           NaN
+2026-01-14 21:07:26           20        Baixo   False            4.1          0.28                1302     False           NaN
+2026-01-16 21:48:31           32        Medio   False            1.0          0.16                 141     False           NaN
+2026-01-19 12:01:57           50        Medio   False           42.3          0.72                 611      True       colisao
+2026-01-19 12:40:09           37        Medio   False           26.5          0.43                 134     False           NaN
+2026-01-20 10:28:09           68         Alto   False           63.1          0.98                 560      True    tombamento
+2026-01-20 19:25:59           26        Baixo   False            4.3          0.25                 688     False           NaN
+2026-01-21 00:34:19           29        Baixo   False            0.8          0.28                 943     False           NaN
+2026-01-21 00:36:35           35        Medio   False            3.8          0.29                  30     False           NaN
+
+==============================================================================
+  Q3 — VALIDAÇÃO — taxa de sinistro real por classe prevista
+==============================================================================
+classe_risco  leituras  score_medio  sinistros  taxa_sinistro_pct
+       Baixo      5729         24.4        276               4.82
+       Medio      3722         39.8        543              14.59
+        Alto       510         67.2        214              41.96
+     Critico        39         80.0         24              61.54
+
+==============================================================================
+  Q4 — Risco por faixa de proximidade de corpo d'água
+==============================================================================
+  faixa_dist_agua  leituras  score_medio  taxa_sinistro_pct
+ 0-50 m (crítico)       533         35.5              12.20
+  50-200 m (alto)      3668         34.7              11.61
+200-500 m (médio)      3441         32.6              10.78
+  > 500 m (baixo)      2358         28.3               8.27
+
+==============================================================================
+  Q5 — Painel de alertas ativos (score >= 80)
+==============================================================================
+equip_id    tipo_equip           data_hora  risco_score classe_risco  precip_24h_mm  umidade_solo  dist_corpo_dagua_m  declividade_pct tipo_operacao
+  EQ-049 Colheitadeira 2026-03-23 19:30:42           92         Alto          115.0          0.98                 185             8.03    transporte
+  EQ-038        Trator 2026-04-01 19:46:57           89      Critico           90.8          0.98                 191             0.76    transporte
+  EQ-018      Caminhão 2026-02-05 04:48:39           88      Critico           76.9          0.98                 178             3.35    transporte
+  EQ-044 Colheitadeira 2026-02-01 00:25:50           88      Critico           75.4          0.98                 101             1.77    transporte
+  EQ-006 Colheitadeira 2026-03-08 01:44:46           87      Critico           54.5          0.92                  48             6.20    transporte
+  EQ-026 Colheitadeira 2026-04-12 23:48:13           86      Critico           91.4          0.98                 120             1.30    transporte
+  EQ-004  Pulverizador 2026-01-04 18:15:15           85      Critico           79.1          0.98                 295             4.27        parado
+  EQ-027      Caminhão 2026-02-17 05:40:50           84      Critico           59.7          0.93                  92             2.17    transporte
+  EQ-013        Trator 2026-02-05 21:39:08           84      Critico           65.7          0.98                  91             0.62    transporte
+  EQ-027      Caminhão 2026-02-22 02:12:53           83      Critico           86.3          0.98                 229             1.29    transporte
+  EQ-004  Pulverizador 2026-02-09 05:41:31           82      Critico           60.6          0.98                 188             1.15    transporte
+  EQ-028 Colheitadeira 2026-03-06 12:25:47           82      Critico           48.3          0.82                 115             6.91    transporte
+  EQ-037 Colheitadeira 2026-01-03 22:30:55           81      Critico           83.7          0.98                  53             9.35        parado
+  EQ-024        Trator 2026-01-27 18:31:14           81      Critico           64.3          0.98                 224             0.37    transporte
+  EQ-025 Colheitadeira 2026-03-28 21:36:09           81      Critico           73.0          0.98                  41             5.94         campo
+  EQ-016      Caminhão 2026-04-06 19:09:42           81      Critico           77.2          0.98                 336             2.03    transporte
+  EQ-025 Colheitadeira 2026-04-08 23:25:17           81      Critico           96.1          0.98                 313             3.48    transporte
+  EQ-029        Trator 2026-04-30 20:20:20           81         Alto           54.3          0.87                  41             2.96         campo
+  EQ-048        Trator 2026-01-22 19:58:33           80      Critico           80.4          0.98                 442             3.36    transporte
+  EQ-027      Caminhão 2026-04-04 22:17:12           80      Critico           65.6          0.98                 464             7.19    transporte
+
+==============================================================================
+  Q6 — Distribuição da frota por classe de risco
+==============================================================================
+classe_risco  leituras  pct
+       Baixo      5729 57.3
+       Medio      3722 37.2
+        Alto       510  5.1
+     Critico        39  0.4
+
+✅ Pipeline concluído.
+   Dashboard:  streamlit run app/streamlit_app.py

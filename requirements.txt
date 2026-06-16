@@ -1,2 +1,29 @@
+# ============================================================
+# AgroGuard IA — dependências (Sprint 2)
+# Python 3.11+  |  instalar:  pip install -r requirements.txt
+# ============================================================
+
+# --- Dados / numérico ---
 numpy>=1.26
 pandas>=2.1
+
+# --- Machine Learning / estatística ---
+scikit-learn>=1.4
+scipy>=1.11
+joblib>=1.3
+
+# --- Visualização (EDA, relatórios, figuras) ---
+matplotlib>=3.8
+seaborn>=0.13
+
+# --- Banco de dados (PostgreSQL) ---
+SQLAlchemy>=2.0
+psycopg2-binary>=2.9
+python-dotenv>=1.0
+
+# --- Dashboard / front-end básico ---
+streamlit>=1.33
+pydeck>=0.8
+
+# --- Notebook (narrativa EDA→treino→avaliação) ---
+jupyter>=1.0

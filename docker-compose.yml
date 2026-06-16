@@ -1,0 +1,55 @@
+# ============================================================
+# AgroGuard IA — Stack local de desenvolvimento (Sprint 2)
+# ------------------------------------------------------------
+# Sobe o PostgreSQL (persistência da telemetria + scores de risco)
+# e o pgAdmin (inspeção visual opcional do banco).
+#
+# Uso:
+#   cp .env.example .env          # ajuste as credenciais se quiser
+#   docker compose up -d          # sobe Postgres + pgAdmin
+#   docker compose down           # derruba (mantém o volume de dados)
+#   docker compose down -v        # derruba e APAGA os dados
+#
+# O schema (sql/schema.sql) é aplicado AUTOMATICAMENTE na primeira
+# inicialização, pois é montado em /docker-entrypoint-initdb.d/.
+# ============================================================
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: agroguard_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-agroguard}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-agroguard}
+      POSTGRES_DB: ${POSTGRES_DB:-agroguard}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - agroguard_pgdata:/var/lib/postgresql/data
+      # Schema aplicado automaticamente na 1ª subida do container
+      - ./sql/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-agroguard} -d ${POSTGRES_DB:-agroguard}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # pgAdmin é opcional — inspeção visual do banco em http://localhost:5050
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: agroguard_pgadmin
+    restart: unless-stopped
+    profiles: ["tools"]        # só sobe com:  docker compose --profile tools up -d
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@agroguard.local}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin}
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+    ports:
+      - "${PGADMIN_PORT:-5050}:80"
+    depends_on:
+      - db
+
+volumes:
+  agroguard_pgdata:
+    name: agroguard_pgdata

@@ -10,13 +10,16 @@
 | Campo | Valor |
 |---|---|
 | **Nome do sistema** | AgroGuard IA |
-| **Versão** | 0.1 (Sprint 1 — proposta) |
-| **Data** | 2026-04 |
-| **Tipo** | Modelo combinado (regressão + classificação + regras) |
-| **Algoritmos propostos** | XGBoost (regressão), Random Forest (classificação), regras de negócio (recomendação) |
-| **Frameworks** | scikit-learn, XGBoost, Pandas |
+| **Versão** | 0.2 (Sprint 2 — primeira implementação treinada) |
+| **Data** | 2026-06 |
+| **Tipo** | Modelo combinado (regressão + classificação + classificação complementar) |
+| **Algoritmos implementados** | GradientBoosting (classificação de classe — principal), GradientBoostingRegressor (score 0–100), RandomForest balanced (classificação de sinistro — complementar) |
+| **Framework** | scikit-learn |
+| **Reprodutibilidade** | `seed=42`, split estratificado 70/15/15 por `classe_risco`, `ColumnTransformer` (OneHot nas categóricas, numéricas passthrough) |
 | **Mantenedores** | Equipe AgroGuard — FIAP × Sompo Challenge |
 | **Licença** | Acadêmico / a definir com Sompo |
+
+> ℹ️ Nota de evolução: na Sprint 1 (v0.1) os algoritmos propostos incluíam **XGBoost**. Na implementação da Sprint 2 optou-se por **GradientBoosting do scikit-learn** (sem dependência de XGBoost), simplificando o stack e mantendo desempenho competitivo na validação.
 
 ---
 
@@ -59,34 +62,85 @@
 
 ## 4. Métricas
 
-### 4.1 Modelo de score (regressão)
+> 📊 **Resultados v0.2 (Sprint 2)** — fonte: `reports/metrics.json` (`modelo_versao=v0.2`, `seed=42`). Avaliação no **conjunto de teste** (1.500 registros). As colunas **Alvo (v0.1)** preservam as metas hipotéticas originais para fins de comparação.
 
-| Métrica | Alvo | Justificativa |
-|---|---|---|
-| **RMSE** | < 8 pontos | Erro absoluto baixo no score 0–100 |
-| **MAE** | < 6 pontos | Robustez a outliers |
-| **R²** | > 0.75 | Ajuste razoável aos padrões |
+### 4.1 Modelo de score (regressão) — `GradientBoostingRegressor`
 
-### 4.2 Modelo de classificação
+| Métrica | Alvo (v0.1) | **Resultado v0.2 (teste)** | Status |
+|---|---|---|---|
+| **RMSE** | < 8 pontos | **3,39** | ✅ |
+| **MAE** | < 6 pontos | **2,66** | ✅ |
+| **R²** | > 0.75 | **0,9361** | ✅ |
 
-| Métrica | Alvo | Justificativa |
-|---|---|---|
-| **F1 macro** | > 0.75 | Penaliza desempenho ruim em classes raras (Crítico) |
-| **Recall em "Crítico"** | > 0.85 | Falsos negativos são caros (sinistros não evitados) |
-| **AUC-ROC** | > 0.88 | Separabilidade global |
-| **Precision em "Crítico"** | > 0.50 | Equilibrar com recall (não exagerar nos alertas) |
+### 4.2 Modelo de classificação de classe (principal) — `GradientBoosting`
 
-### 4.3 Recomendação
+**Comparação na validação (escolha do modelo):** RandomForest F1-macro=0,6258 / acc=0,8687 vs. **GradientBoosting F1-macro=0,6765 / acc=0,8707** → GradientBoosting escolhido.
+
+| Métrica | Alvo (v0.1) | **Resultado v0.2 (teste)** | Status |
+|---|---|---|---|
+| **Accuracy** | — | **0,8547** | — |
+| **F1 macro** | > 0.75 | **0,6632** | ⚠️ abaixo do alvo (puxado pela classe rara "Crítico") |
+| **AUC-ROC (sep. global)** | > 0.88 | ver §4.3 (sinistro) | — |
+| **CV 5-fold (F1-macro)** | — | **0,5813 ± 0,0081** | — |
+
+**Recall (e demais métricas) por classe — teste:**
+
+| Classe | Precision | Recall | F1 | Suporte |
+|---|---|---|---|---|
+| Baixo | 0,88 | **0,91** | 0,90 | 828 |
+| Médio | 0,83 | **0,80** | 0,82 | 586 |
+| Alto | 0,73 | **0,75** | 0,74 | 80 |
+| Crítico | 0,25 | **0,17** | 0,20 | 6 |
+
+> ⚠️ O alvo original "Recall em Crítico > 0,85" **não foi atingido** (recall=0,17) — ver limitação detalhada e mitigação na §8.1.
+
+**Matriz de confusão (linhas = real, colunas = previsto):**
+
+| Real ↓ / Previsto → | Baixo | Médio | Alto | Crítico |
+|---|---|---|---|---|
+| **Baixo** | 753 | 75 | 0 | 0 |
+| **Médio** | 100 | 468 | 18 | 0 |
+| **Alto** | 0 | 17 | 60 | 3 |
+| **Crítico** | 0 | 1 | 4 | 1 |
+
+### 4.3 Modelo de classificação de sinistro (complementar) — `RandomForest balanced`
+
+Alvo binário **estocástico** (ocorrência de sinistro 0/1), representando um problema de ML mais realista que a classe determinística.
+
+| Métrica | **Resultado v0.2 (teste)** |
+|---|---|
+| **AUC-ROC** | **0,7489** |
+| **F1** | **0,3099** |
+| **Recall** | **0,2308** |
+
+### 4.4 Recomendação
 
 - **Aceitação pelo operador** (acompanhada via feedback no app) — alvo: > 60%.
 - **Sinistros evitados** (estimativa contrafactual) — KPI de negócio.
 
-### 4.4 Metodologia de avaliação
+### 4.5 Metodologia de avaliação
 
-- Split estratificado 70/15/15 (treino/val/teste)
-- Validação cruzada em 5 folds estratificados
-- Avaliação separada por tipo de equipamento
+- Split estratificado 70/15/15 por `classe_risco` (treino=7000 / validação=1500 / teste=1500), `seed=42`
+- Validação cruzada em 5 folds estratificados (classificador de classe: F1-macro=0,5813 ± 0,0081)
+- Pré-processamento via `ColumnTransformer` (OneHot nas 3 categóricas, 13 numéricas passthrough)
+- **Anti-vazamento (data leakage):** alvos e derivados (`risco_score`, `classe_risco`, `sinistro`, `tipo_sinistro`, `severidade_sinistro`) **não** entram em X; `latitude`/`longitude` ficam **fora** do modelo (mantidos só para o mapa)
+- Validação de negócio via consultas SQL no banco (taxa de sinistro real por classe prevista — ver §4.6)
 - Análise de fairness por região e operador (ver seção 8)
+
+### 4.6 Validação de negócio (taxa de sinistro real por classe prevista)
+
+A taxa de sinistro real **cresce monotonicamente** conforme a classe prevista, evidência de que o modelo separa risco de forma útil:
+
+| Classe prevista | Leituras | Score médio | Taxa de sinistro real |
+|---|---|---|---|
+| Baixo | 5.729 | 24,4 | 4,82% |
+| Médio | 3.722 | 39,8 | 14,59% |
+| Alto | 510 | 67,2 | 41,96% |
+| Crítico | 39 | 80,0 | 61,54% |
+
+**Distância a corpo d'água (variável crítica):** risco decresce com a distância — 0–50 m: score 35,5 / 12,20%; 50–200 m: 34,7 / 11,61%; 200–500 m: 32,6 / 10,78%; >500 m: 28,3 / 8,27%.
+
+**Alertas:** limiar = score ≥ 80 → **26 alertas** persistidos.
 
 ---
 
@@ -94,12 +148,13 @@
 
 ### 5.1 Dataset Sprint 1–2 (sintético)
 
-- **Origem:** `data/synthetic_dataset.csv` gerado por `data/generate_dataset.py`
-- **Tamanho:** 10.000 registros
+- **Origem:** `data/synthetic_dataset.csv` gerado por `data/generate_dataset.py --seed 42`
+- **Tamanho:** 10.000 registros × 26 colunas
+- **Split:** treino=7.000, validação=1.500, teste=1.500
 - **Janela temporal simulada:** jan–abr 2026
-- **Variáveis:** 21 features + 5 targets (ver `data-dictionary.md`)
-- **Distribuição de classes:** ~55% Baixo, ~39% Médio, ~5% Alto, ~0.4% Crítico
-- **Taxa de sinistros:** ~10–11%
+- **Features do modelo (X):** 13 numéricas + 3 categóricas (`tipo_equip`, `tipo_operacao`, `turno`) — alvos e geolocalização ficam fora (ver §4.5 anti-vazamento e `data-dictionary.md`)
+- **Distribuição de `classe_risco`:** Baixo=5.517, Medio=3.907, Alto=533, Critico=43
+- **Taxa de sinistro global:** 10,57%
 
 ### 5.2 Limitações dos dados sintéticos
 
@@ -154,6 +209,12 @@
 
 ### 8.1 Limitações técnicas
 
+- **Recall baixo na classe "Crítico" (0,17).** A classe é rara no dataset (43/10.000 → apenas **6 exemplos no teste**), o que torna o recall instável e abaixo do alvo original de 0,85.
+  - 🛡️ **Mitigação principal:** o **ALERTA operacional é baseado no SCORE** (regressor com **R²=0,9361 / RMSE=3,39**), e não na classe rara — assim o sistema não depende de acertar a etiqueta "Crítico" para disparar o aviso (limiar score ≥ 80).
+  - 🛡️ **Threshold tuning** revisado a cada release.
+  - 🛡️ **Mais dados reais na Sprint 4** para reforçar a representação da classe Crítico.
+- **Alvo determinístico no gerador sintético.** `risco_score` e `classe_risco` são função determinística das features no gerador; os modelos aprendem essa função latente a partir das features brutas (válido academicamente, mas explica o R² alto). Já o alvo **`sinistro` é estocástico** (AUC=0,7489) e representa um problema de ML mais "real".
+- **Dados 100% sintéticos** — validação cruzada com dados reais prevista para Sprint 4.
 - Dependência de qualidade de sinal IoT no campo.
 - Latência de até 6 minutos em casos de cold-start de cache.
 - Score perde acurácia quando faltam variáveis-chave (ex.: sem dado de chuva → score conservador).
@@ -176,12 +237,12 @@
 
 ## 9. Histórico de versões
 
-| Versão | Data | Mudanças |
-|---|---|---|
-| 0.1 | 2026-04 | Versão inicial, proposta da Sprint 1 (apenas especificação) |
-| 0.2 | _Sprint 2_ | Primeira implementação treinada em dataset sintético |
-| 0.3 | _Sprint 3_ | Integração com features de clima real |
-| 1.0 | _Sprint 4_ | Modelo final do Challenge, deploy em staging |
+| Versão | Data | Status | Mudanças |
+|---|---|---|---|
+| 0.1 | 2026-04 | Concluída | Versão inicial, proposta da Sprint 1 (apenas especificação) |
+| **0.2** | **2026-06** | **✅ Concluída (Sprint 2)** | **Primeira implementação treinada em dataset sintético.** Classe: GradientBoosting (acc=0,8547 / F1-macro=0,6632). Score: GradientBoostingRegressor (RMSE=3,39 / MAE=2,66 / R²=0,9361). Sinistro: RandomForest balanced (AUC=0,7489). Troca de XGBoost → GradientBoosting (scikit-learn); pipeline anti-vazamento; validação de negócio via SQL. |
+| 0.3 | _Sprint 3_ | Planejada | Integração com features de clima real |
+| 1.0 | _Sprint 4_ | Planejada | Modelo final do Challenge, deploy em staging; validação com dados reais Sompo |
 
 ---
 
