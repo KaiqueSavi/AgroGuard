@@ -7,6 +7,18 @@
 
 ---
 
+## 👥 Integrantes
+
+| RM | Nome |
+|---|---|
+| RM572559 | Daniel |
+| RM562072 | Kaique |
+| RM571013 | Willian |
+| RM565326 | Pedro |
+| RM571574 | Vinícius |
+
+---
+
 ## 📋 Sumário
 
 - 🚀 [**Sprint 2 — Implementação da Inteligência de Dados**](#-sprint-2--implementação-da-inteligência-de-dados) ← **entrega atual**
