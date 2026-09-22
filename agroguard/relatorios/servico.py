@@ -8,12 +8,45 @@ ranking dos equipamentos mais arriscados.
 """
 from __future__ import annotations
 
+import json
 from typing import Any
 
+import pandas as pd
 from sqlalchemy import text
 from sqlalchemy.engine import Engine
 
 from agroguard.erros import ErroValidacao
+
+
+def normalizar_jsonb(valor: Any) -> list[Any]:
+    """Normaliza uma coluna JSONB (`fatores_principais`/`recomendacoes`).
+
+    O driver psycopg2 já devolve `list`/`dict` nativos, mas esta função também
+    aceita uma string JSON (defensivo contra outro driver/serialização) e
+    trata `None`/`NaN` como lista vazia — nunca lança.
+
+    Fonte única: `app.consultas` (dashboard) e `relatorios.gerar_relatorio` (relatório
+    semanal) importam esta implementação em vez de duplicá-la.
+    """
+    if valor is None:
+        return []
+    if isinstance(valor, float) and pd.isna(valor):
+        return []
+    if isinstance(valor, list):
+        return valor
+    if isinstance(valor, dict):
+        return [valor]
+    if isinstance(valor, str):
+        texto = valor.strip()
+        if not texto:
+            return []
+        try:
+            carregado = json.loads(texto)
+        except (json.JSONDecodeError, TypeError):
+            return []
+        return carregado if isinstance(carregado, list) else [carregado]
+    return []
+
 
 COLUNA_POR_AGRUPAMENTO = {
     "equipamento": "equip_id",
@@ -28,7 +61,14 @@ TRUNC_POR_JANELA = {
 
 
 def tendencias(engine: Engine, por: str, janela: str, limite: int) -> list[dict[str, Any]]:
-    """Score médio/pico, nº de alertas e taxa de sinistro por `por` e `janela`."""
+    """Score médio/pico, nº de alertas e taxa de sinistro por `por` e `janela`.
+
+    `limite` é o número MÁXIMO de chaves (grupos) devolvidas — nunca um limite de linhas.
+    Um `LIMIT` direto sobre as linhas já agrupadas por (chave, período) corta o resultado no
+    meio de um grupo (ex.: `por=equipamento, limite=100` devolvendo só 6 dos 50 equipamentos,
+    porque cada equipamento ocupa várias linhas — uma por período). Em vez disso, escolhem-se
+    primeiro as `limite` chaves de maior score médio no período inteiro, e devolvem-se TODOS
+    os períodos dessas chaves."""
     coluna = COLUNA_POR_AGRUPAMENTO.get(por)
     if coluna is None:
         raise ErroValidacao(f"'por' deve ser um de {sorted(COLUNA_POR_AGRUPAMENTO)} (recebido '{por}').")
@@ -41,19 +81,27 @@ def tendencias(engine: Engine, por: str, janela: str, limite: int) -> list[dict[
     # usuário — por isso é seguro interpolá-los no SQL.
     query = text(
         f"""
+        WITH top_chaves AS (
+            SELECT {coluna} AS chave
+            FROM vw_risco_completo
+            WHERE risco_score IS NOT NULL
+            GROUP BY {coluna}
+            ORDER BY AVG(risco_score) DESC
+            LIMIT :limite
+        )
         SELECT
-            {coluna}                                                       AS chave,
-            date_trunc('{trunc}', data_hora)                               AS periodo,
-            COUNT(*)                                                       AS leituras,
-            ROUND(AVG(risco_score), 1)                                     AS score_medio,
-            MAX(risco_score)                                               AS score_pico,
-            SUM(CASE WHEN alerta THEN 1 ELSE 0 END)                        AS alertas,
-            ROUND(100.0 * AVG(CASE WHEN sinistro THEN 1 ELSE 0 END), 2)    AS taxa_sinistro_pct
-        FROM vw_risco_completo
-        WHERE risco_score IS NOT NULL
-        GROUP BY {coluna}, date_trunc('{trunc}', data_hora)
-        ORDER BY {coluna}, periodo
-        LIMIT :limite
+            v.{coluna}                                                       AS chave,
+            date_trunc('{trunc}', v.data_hora)                               AS periodo,
+            COUNT(*)                                                         AS leituras,
+            ROUND(AVG(v.risco_score), 1)                                     AS score_medio,
+            MAX(v.risco_score)                                               AS score_pico,
+            SUM(CASE WHEN v.alerta THEN 1 ELSE 0 END)                        AS alertas,
+            ROUND(100.0 * AVG(CASE WHEN v.sinistro THEN 1 ELSE 0 END), 2)    AS taxa_sinistro_pct
+        FROM vw_risco_completo v
+        JOIN top_chaves t ON t.chave = v.{coluna}
+        WHERE v.risco_score IS NOT NULL
+        GROUP BY v.{coluna}, date_trunc('{trunc}', v.data_hora)
+        ORDER BY v.{coluna}, periodo
         """
     )
     with engine.connect() as conn:

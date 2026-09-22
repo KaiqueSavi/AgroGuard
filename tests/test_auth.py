@@ -7,6 +7,8 @@ não está disponível.
 """
 from __future__ import annotations
 
+import pytest
+
 
 def _assert_formato_erro(resposta) -> dict:
     """Toda resposta de erro carrega X-Request-Id e o corpo no formato ErroOut."""
@@ -78,3 +80,65 @@ def test_rate_limit_excedido(api_client, chaves, monkeypatch):
         monkeypatch.undo()
         recarregar()
         resetar_limitador()
+
+
+# ---------------------------------------------------------------------------
+# F6 — chave inválida/ausente também é limitada (por IP), e um 429 nunca gera logs_uso
+# ---------------------------------------------------------------------------
+def test_chave_invalida_e_limitada_por_ip_sem_crescer_logs_uso(api_client, db_engine, monkeypatch):
+    from sqlalchemy import text
+
+    from agroguard.api.auth import resetar_limitador
+    from agroguard.config import recarregar
+
+    resetar_limitador()
+    monkeypatch.setenv("RATE_LIMIT_POR_MIN", "5")
+    recarregar()
+    try:
+        with db_engine.connect() as conn:
+            antes = conn.execute(text("SELECT COUNT(*) FROM logs_uso")).scalar()
+
+        respostas = [
+            api_client.post("/telemetria", json={}, headers={"X-API-Key": "chave-invalida-em-flood"})
+            for _ in range(30)
+        ]
+        codigos = [r.status_code for r in respostas]
+        assert 429 in codigos
+        n_429 = codigos.count(429)
+
+        with db_engine.connect() as conn:
+            depois = conn.execute(text("SELECT COUNT(*) FROM logs_uso")).scalar()
+
+        # logs_uso só pode ter crescido pelas respostas que NÃO foram 429 (401 de chave
+        # inválida) — nenhuma linha nova para as respostas recusadas por rate limit.
+        assert (depois - antes) <= (len(codigos) - n_429)
+    finally:
+        monkeypatch.undo()
+        recarregar()
+        resetar_limitador()
+
+
+# ---------------------------------------------------------------------------
+# F10 — AGROGUARD_API_KEYS malformada levanta ValueError cedo, em vez de descartar em silêncio
+# ---------------------------------------------------------------------------
+def test_parse_chaves_malformadas_levantam_valueerror():
+    from agroguard.config import _parse_chaves
+
+    casos_invalidos = [
+        "kid-sem-tres-partes",                    # não tem 3 partes 'kid:papel:segredo'
+        "kid1:papel-desconhecido:segredo-valido",  # papel fora do catálogo fechado
+        "kid1:gestor:segredo-a,kid1:admin:segredo-b",  # kid duplicado entre entradas
+    ]
+    for bruto in casos_invalidos:
+        with pytest.raises(ValueError):
+            _parse_chaves(bruto)
+
+
+def test_parse_chaves_valida_parseia_normalmente():
+    from agroguard.config import _parse_chaves
+
+    resultado = _parse_chaves("kid1:gestor:segredo-valido")
+    assert len(resultado) == 1
+    ((kid, papel),) = resultado.values()
+    assert kid == "kid1"
+    assert papel == "gestor"

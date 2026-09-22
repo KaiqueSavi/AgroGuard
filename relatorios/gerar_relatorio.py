@@ -18,7 +18,6 @@ CLI:
 from __future__ import annotations
 
 import argparse
-import json
 import sys
 from collections import Counter
 from pathlib import Path
@@ -38,6 +37,7 @@ if str(ROOT) not in sys.path:
 
 from agroguard.alertas.servico import REGRAS  # noqa: E402
 from agroguard.relatorios import servico as relatorios_servico  # noqa: E402
+from agroguard.relatorios.servico import normalizar_jsonb as _normalizar  # noqa: E402
 
 CSV_PADRAO = ROOT / "data" / "synthetic_dataset.csv"
 SAIDA_PADRAO = ROOT / "reports" / "relatorio_risco.md"
@@ -48,31 +48,8 @@ REGRA_POR_ACAO = {acao: criterio for acao, criterio, _, _ in REGRAS}
 
 
 # ---------------------------------------------------------------------------
-# Helpers de normalização/markdown
+# Helpers de markdown
 # ---------------------------------------------------------------------------
-def _normalizar(valor: Any) -> list[Any]:
-    """Mesma lógica defensiva de `app.consultas.normalizar_jsonb` — JSONB do
-    Postgres já vem como list/dict, mas aceita string JSON e trata NaN/None."""
-    if valor is None:
-        return []
-    if isinstance(valor, float) and pd.isna(valor):
-        return []
-    if isinstance(valor, list):
-        return valor
-    if isinstance(valor, dict):
-        return [valor]
-    if isinstance(valor, str):
-        texto = valor.strip()
-        if not texto:
-            return []
-        try:
-            carregado = json.loads(texto)
-        except (json.JSONDecodeError, TypeError):
-            return []
-        return carregado if isinstance(carregado, list) else [carregado]
-    return []
-
-
 def _tabela_markdown(df: pd.DataFrame, colunas: list[str] | None = None) -> str:
     """Converte um DataFrame em tabela Markdown pipe, sem depender de `tabulate`."""
     if df is None or df.empty:

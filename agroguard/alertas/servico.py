@@ -17,8 +17,12 @@ from sqlalchemy.engine import Connection
 
 from agroguard.erros import ErroAgroGuard
 from ml.features import ALERT_THRESHOLD
+from ml.inferencia import SCORE_BINS
 
 CRITERIO_ALERTA = f"risco_score >= {ALERT_THRESHOLD}"
+# Limiar da recomendação "MONITORAR" (fallback quando nada mais disparou): a fronteira
+# Medio/Alto de `ml.inferencia.SCORE_BINS` — nunca um 60 solto e redigitado aqui.
+LIMIAR_MONITORAR = SCORE_BINS[1][0]
 
 # Tabela de regras de recomendação: (ação, critério legível, predicado, prioridade).
 # `MONITORAR` é o fallback quando nada mais disparou mas o score já preocupa.
@@ -69,11 +73,11 @@ def recomendar(leitura: dict[str, Any], score: int, fatores: list[Any]) -> list[
         for acao, criterio, predicado, prioridade in REGRAS
         if predicado(leitura, score)
     ]
-    if not recomendacoes and score >= 60:
+    if not recomendacoes and score >= LIMIAR_MONITORAR:
         recomendacoes.append(
             {
                 "acao": "MONITORAR",
-                "criterio": "risco_score >= 60 sem nenhum outro critério específico",
+                "criterio": f"risco_score >= {LIMIAR_MONITORAR} sem nenhum outro critério específico",
                 "prioridade": "baixa",
             }
         )

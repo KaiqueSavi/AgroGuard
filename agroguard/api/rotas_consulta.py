@@ -69,7 +69,16 @@ def tendencias(
     request: Request,
     por: Literal["equipamento", "regiao", "operacao"] = Query(...),
     janela: Literal["dia", "semana"] = Query(default="semana"),
-    limite: int = Query(default=100, ge=1, le=1000),
+    limite: int = Query(
+        default=20,
+        ge=1,
+        le=100,
+        description=(
+            "Número MÁXIMO de chaves (equipamentos/regiões/operações) retornadas, "
+            "escolhidas pelo maior score médio no período — não um limite de linhas: "
+            "toda chave selecionada volta com TODOS os seus períodos."
+        ),
+    ),
     identidade: Identidade = Depends(exigir_papel(*_PAPEIS_CONSULTA)),
 ) -> list[TendenciaOut]:
     linhas = relatorios_servico.tendencias(request.app.state.engine, por, janela, limite)

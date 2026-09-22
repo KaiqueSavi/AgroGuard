@@ -7,6 +7,7 @@ aplicado) e `db_engine` para verificar diretamente as tabelas.
 from __future__ import annotations
 
 import copy
+import json
 
 import pytest
 from sqlalchemy import text
@@ -253,3 +254,125 @@ def test_health_retorna_modelo_versao(api_client):
     assert r.status_code == 200
     corpo = r.json()
     assert corpo["modelo_versao"] is not None
+
+
+# ---------------------------------------------------------------------------
+# F1 — exceção não tratada: 500 com X-Request-Id + logs_uso (não só o handler genérico)
+# ---------------------------------------------------------------------------
+def test_excecao_nao_tratada_retorna_500_com_header_e_log(monkeypatch, db_engine, modelos_tmp, chaves):
+    from fastapi.testclient import TestClient
+
+    from agroguard.api.main import create_app
+    from agroguard.telemetria import servico as telemetria_servico
+
+    def _explode(*args, **kwargs):
+        raise RuntimeError("falha proposital de teste")
+
+    monkeypatch.setattr(telemetria_servico, "processar", _explode)
+
+    payload = _payload("EQ-901", "2026-02-01T17:00:00")
+    with TestClient(create_app(), raise_server_exceptions=False) as client:
+        r = client.post("/telemetria", json=payload, headers={"X-API-Key": chaves["dispositivo"]})
+
+    assert r.status_code == 500
+    assert "X-Request-Id" in r.headers
+    corpo = r.json()
+    assert corpo["codigo"] == "erro_interno"
+    rid = r.headers["X-Request-Id"]
+    assert corpo["request_id"] == rid
+
+    with db_engine.connect() as conn:
+        log = conn.execute(text("SELECT * FROM logs_uso WHERE request_id = :rid"), {"rid": rid}).mappings().first()
+    assert log is not None
+    assert log["status_http"] == 500
+
+
+# ---------------------------------------------------------------------------
+# F2 — /telemetria/lote valida item a item (um item ruim não derruba o lote)
+# ---------------------------------------------------------------------------
+def test_lote_com_item_invalido_de_schema_nao_derruba_lote_inteiro(api_client, chaves, db_engine):
+    payload_valido = _payload("EQ-902", "2026-02-01T18:00:00")
+    payload_invalido = _payload("EQ-901", "2026-02-01T18:00:00")
+    payload_invalido["ambiente"]["umidade_solo"] = 1.5  # fora de 0..1: inválido de schema
+
+    lote = {"leituras": [payload_valido, payload_invalido]}
+    r = api_client.post("/telemetria/lote", json=lote, headers={"X-API-Key": chaves["dispositivo"]})
+    assert r.status_code == 200
+    corpo = r.json()
+    assert len(corpo["aceitos"]) == 1
+    assert len(corpo["rejeitados"]) == 1
+    assert corpo["rejeitados"][0]["codigo"] == "validacao"
+
+    with db_engine.connect() as conn:
+        n = conn.execute(
+            text("SELECT count(*) FROM leituras_telemetria WHERE equip_id = :eq AND data_hora = :dh"),
+            {"eq": "EQ-902", "dh": "2026-02-01T18:00:00"},
+        ).scalar()
+    assert n == 1
+
+
+# ---------------------------------------------------------------------------
+# F3 — histórico de scores devolve as leituras MAIS RECENTES (não as mais antigas)
+# ---------------------------------------------------------------------------
+def test_historico_scores_retorna_as_leituras_mais_recentes(api_client, chaves):
+    equip_id = "EQ-901"
+    for hora in ("19", "20", "21"):
+        payload = _payload(equip_id, f"2026-02-01T{hora}:00:00")
+        r = api_client.post("/telemetria", json=payload, headers={"X-API-Key": chaves["dispositivo"]})
+        assert r.status_code == 201
+
+    r_hist = api_client.get(f"/equipamentos/{equip_id}/scores?limite=2", headers={"X-API-Key": chaves["gestor"]})
+    assert r_hist.status_code == 200
+    corpo = r_hist.json()
+    assert len(corpo) == 2
+
+    horas = [item["data_hora"] for item in corpo]
+    assert horas == sorted(horas)  # ordem crescente (do mais antigo pro mais recente, dentro do recorte)
+    assert horas[-1].startswith("2026-02-01T21:00:00")  # a leitura MAIS RECENTE está presente
+    assert horas[0].startswith("2026-02-01T20:00:00")  # a segunda mais recente, não a mais antiga
+
+
+# ---------------------------------------------------------------------------
+# F7 — /auditoria/{request_id} com um valor que não é UUID retorna 422, não 500
+# ---------------------------------------------------------------------------
+def test_auditoria_request_id_invalido_retorna_422(api_client, chaves):
+    r = api_client.get("/auditoria/abc", headers={"X-API-Key": chaves["admin"]})
+    assert r.status_code == 422
+
+
+# ---------------------------------------------------------------------------
+# F9 — 422 não ecoa `input`/`url` do payload; corpo grande demais vira 413
+# ---------------------------------------------------------------------------
+def test_erro_validacao_nao_ecoa_input_do_payload(api_client, chaves):
+    payload = _payload("EQ-901", "2026-02-01T22:00:00")
+    payload["ambiente"]["umidade_solo"] = 1.5
+
+    r = api_client.post("/telemetria", json=payload, headers={"X-API-Key": chaves["dispositivo"]})
+    assert r.status_code == 422
+    detalhe = r.json()["detalhe"]
+    assert detalhe
+    for erro in detalhe:
+        assert "input" not in erro
+        assert "url" not in erro
+
+
+def test_payload_grande_retorna_413(api_client):
+    corpo_grande = json.dumps({"x": "a" * 1_200_000}).encode("utf-8")
+    r = api_client.post(
+        "/telemetria",
+        content=corpo_grande,
+        headers={"X-API-Key": "irrelevante-para-este-teste", "Content-Type": "application/json"},
+    )
+    assert r.status_code == 413
+    assert r.json()["codigo"] == "payload_grande"
+
+
+# ---------------------------------------------------------------------------
+# F18 — /openapi.json expõe X-API-Key como security scheme (Authorize no Swagger)
+# ---------------------------------------------------------------------------
+def test_openapi_expoe_security_scheme_x_api_key(api_client):
+    r = api_client.get("/openapi.json")
+    assert r.status_code == 200
+    schemas = r.json().get("components", {}).get("securitySchemes", {})
+    assert schemas
+    assert any(s.get("type") == "apiKey" and s.get("name") == "X-API-Key" for s in schemas.values())

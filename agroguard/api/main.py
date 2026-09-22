@@ -36,6 +36,7 @@ from ml.inferencia import ModeloIndisponivel as ModeloAusente
 from ml.inferencia import carregar_modelos
 
 ROTAS_TELEMETRIA_POST = {"/telemetria", "/telemetria/lote"}
+TAMANHO_MAXIMO_CORPO_BYTES = 1_000_000
 
 
 @asynccontextmanager
@@ -75,7 +76,7 @@ async def _registrar_rejeicao_validacao(app: FastAPI, request: Request, request_
     import json
 
     identidade: Identidade | None = getattr(request.state, "identidade", None)
-    origem = "simulador" if identidade and identidade.kid.startswith("sim") else "api"
+    origem = telemetria_servico.origem_leitura(identidade)
 
     corpo = await request.body()
     payload: dict[str, Any] | None = None
@@ -101,6 +102,20 @@ async def _registrar_rejeicao_validacao(app: FastAPI, request: Request, request_
         logar("falha_ao_registrar_rejeicao", nivel="warning", erro=str(exc_interno), request_id=request_id)
 
 
+def _resposta_erro_interno(exc: Exception, request_id: str | None) -> JSONResponse:
+    """Corpo/`status_code` de um 500 genérico — usado tanto pelo handler quanto,
+    quando a exceção escapa do próprio handler (ver `rastreabilidade`), pelo middleware."""
+    logar("erro_nao_tratado", nivel="error", erro=str(exc), tipo=type(exc).__name__, request_id=request_id)
+    return JSONResponse(
+        status_code=500,
+        content=ErroOut(
+            codigo="erro_interno",
+            mensagem="Erro interno inesperado.",
+            request_id=request_id,
+        ).model_dump(mode="json"),
+    )
+
+
 def create_app() -> FastAPI:
     app = FastAPI(title="AgroGuard IA API", version="0.3", lifespan=_lifespan)
     app.state.engine = get_engine()
@@ -113,11 +128,54 @@ def create_app() -> FastAPI:
         request.state.request_id = request_id
         inicio = time.perf_counter()
 
-        response = await call_next(request)
+        tamanho_corpo = request.headers.get("content-length")
+        if tamanho_corpo is not None:
+            try:
+                excede = int(tamanho_corpo) > TAMANHO_MAXIMO_CORPO_BYTES
+            except ValueError:
+                excede = False
+            if excede:
+                response = JSONResponse(
+                    status_code=413,
+                    content=ErroOut(
+                        codigo="payload_grande",
+                        mensagem="Corpo da requisição excede o limite permitido.",
+                        request_id=request_id,
+                    ).model_dump(mode="json"),
+                )
+                response.headers["X-Request-Id"] = request_id
+                duracao_ms = int(round((time.perf_counter() - inicio) * 1000))
+                _registrar_uso_seguro(app, request, request_id, response.status_code, duracao_ms)
+                return response
+
+        # A `ServerErrorMiddleware` do Starlette fica FORA deste middleware — uma exceção
+        # não tratada que escape de `call_next` nunca voltaria por aqui, e a resposta que ela
+        # gera não carregaria X-Request-Id nem viraria uma linha de `logs_uso`. Por isso a
+        # conversão para 500 acontece aqui, e o handler de `Exception` abaixo fica só como
+        # rede de segurança para o caso (hoje improvável) de algo escapar mesmo assim.
+        try:
+            response = await call_next(request)
+        except Exception as exc:  # noqa: BLE001 — precisa capturar QUALQUER exceção não tratada
+            response = _resposta_erro_interno(exc, request_id)
 
         duracao_ms = int(round((time.perf_counter() - inicio) * 1000))
         response.headers["X-Request-Id"] = request_id
-        _registrar_uso_seguro(app, request, request_id, response.status_code, duracao_ms)
+
+        if response.status_code == 429:
+            # Um 429 não vira `logs_uso`: sob flood (chave inválida ou não), gravar uma linha
+            # por requisição recusada é o próprio ataque de negação de serviço contra o banco.
+            identidade: Identidade | None = getattr(request.state, "identidade", None)
+            logar(
+                "limite_excedido",
+                nivel="warning",
+                request_id=request_id,
+                metodo=request.method,
+                rota=request.url.path,
+                kid=identidade.kid if identidade else None,
+                ip=request.client.host if request.client else None,
+            )
+        else:
+            _registrar_uso_seguro(app, request, request_id, response.status_code, duracao_ms)
         return response
 
     @app.exception_handler(ErroAgroGuard)
@@ -135,28 +193,21 @@ def create_app() -> FastAPI:
         request_id = getattr(request.state, "request_id", None)
         if request.url.path in ROTAS_TELEMETRIA_POST and request.method == "POST":
             await _registrar_rejeicao_validacao(app, request, request_id, exc)
+        detalhe = [{k: v for k, v in erro.items() if k not in ("input", "url")} for erro in exc.errors()]
         return JSONResponse(
             status_code=422,
             content=ErroOut(
                 codigo="validacao",
                 mensagem="Dados inválidos.",
                 request_id=request_id,
-                detalhe=exc.errors(),
+                detalhe=detalhe,
             ).model_dump(mode="json"),
         )
 
     @app.exception_handler(Exception)
     async def _erro_generico(request: Request, exc: Exception) -> JSONResponse:
         request_id = getattr(request.state, "request_id", None)
-        logar("erro_nao_tratado", nivel="error", erro=str(exc), tipo=type(exc).__name__, request_id=request_id)
-        return JSONResponse(
-            status_code=500,
-            content=ErroOut(
-                codigo="erro_interno",
-                mensagem="Erro interno inesperado.",
-                request_id=request_id,
-            ).model_dump(mode="json"),
-        )
+        return _resposta_erro_interno(exc, request_id)
 
     @app.get("/health", tags=["saude"])
     def health() -> dict[str, Any]:

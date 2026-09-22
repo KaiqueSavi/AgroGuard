@@ -31,6 +31,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from random import Random
 from typing import Any, Callable
+from urllib.parse import urlparse
 
 import pandas as pd
 
@@ -93,6 +94,25 @@ class Reconciliacao:
 
 def _clip(valor: float, minimo: float, maximo: float) -> float:
     return max(minimo, min(maximo, valor))
+
+
+_HOSTS_LOCAIS = {"localhost", "127.0.0.1", "::1"}
+
+
+def _validar_base_url_local(base_url: str, permitir_remoto: bool) -> None:
+    """Recusa um `--base-url` que não aponte para localhost, a menos que `--permitir-remoto`
+    seja informado — o help do argumento já dizia "somente localhost", mas nada impedia o
+    simulador de bombardear qualquer host com telemetria sintética por engano."""
+    if permitir_remoto:
+        return
+    host = urlparse(base_url).hostname
+    if host not in _HOSTS_LOCAIS:
+        print(
+            f"--base-url '{base_url}' não aponta para localhost (host resolvido: "
+            f"'{host}'). Use --permitir-remoto para confirmar explicitamente um destino remoto.",
+            file=sys.stderr,
+        )
+        raise SystemExit(2)
 
 
 # ---------------------------------------------------------------------------
@@ -389,6 +409,11 @@ def _construir_parser() -> argparse.ArgumentParser:
     parser.add_argument("--taxa-invalidos", type=float, default=0.0, help="Fração de eventos inválidos (0..1).")
     parser.add_argument("--taxa-duplicados", type=float, default=0.0, help="Fração de eventos duplicados (0..1).")
     parser.add_argument("--base-url", default="http://localhost:8001", help="URL base da API (somente localhost).")
+    parser.add_argument(
+        "--permitir-remoto",
+        action="store_true",
+        help="Permite um --base-url fora de localhost (confirmação explícita).",
+    )
     parser.add_argument("--api-key", default=None, help="Segredo do papel dispositivo (padrão: env/​.env).")
     parser.add_argument("--intervalo", type=float, default=0.0, help="Pausa (s) entre requisições.")
     parser.add_argument("--assinar", action="store_true", help="Assina cada requisição com X-Signature (HMAC-SHA256).")
@@ -399,6 +424,7 @@ def _construir_parser() -> argparse.ArgumentParser:
 
 def _main(argv: list[str] | None = None) -> int:
     args = _construir_parser().parse_args(argv)
+    _validar_base_url_local(args.base_url, args.permitir_remoto)
     api_key = _resolver_api_key(args.api_key)
 
     eventos = gerar_eventos(

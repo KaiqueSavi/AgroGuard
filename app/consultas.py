@@ -13,47 +13,23 @@ Fontes de verdade reaproveitadas (nunca duplicadas aqui):
 """
 from __future__ import annotations
 
-import json
 from pathlib import Path
-from typing import Any
 
 import pandas as pd
 import streamlit as st
 from sqlalchemy import text
 from sqlalchemy.engine import Engine
 
+from agroguard.logs import logar
 from agroguard.relatorios import servico as relatorios_servico
 from ml.features import ALERT_THRESHOLD
 
 ROOT = Path(__file__).resolve().parents[1]
 CSV_PATH = ROOT / "data" / "synthetic_dataset.csv"
 
-
-def normalizar_jsonb(valor: Any) -> list[Any]:
-    """Normaliza uma coluna JSONB (`fatores_principais`/`recomendacoes`).
-
-    O driver psycopg2 já devolve `list`/`dict` nativos, mas esta função também
-    aceita uma string JSON (defensivo contra outro driver/serialização) e
-    trata `None`/`NaN` como lista vazia — nunca lança.
-    """
-    if valor is None:
-        return []
-    if isinstance(valor, float) and pd.isna(valor):
-        return []
-    if isinstance(valor, list):
-        return valor
-    if isinstance(valor, dict):
-        return [valor]
-    if isinstance(valor, str):
-        texto = valor.strip()
-        if not texto:
-            return []
-        try:
-            carregado = json.loads(texto)
-        except (json.JSONDecodeError, TypeError):
-            return []
-        return carregado if isinstance(carregado, list) else [carregado]
-    return []
+# Reexportado: `agroguard.relatorios.servico.normalizar_jsonb` é a implementação única —
+# o relatório semanal (`relatorios.gerar_relatorio`) importa a mesma função, nunca uma cópia.
+normalizar_jsonb = relatorios_servico.normalizar_jsonb
 
 
 def _resolver_engine(engine: Engine | None) -> Engine:
@@ -73,10 +49,12 @@ def carregar_visao(engine: Engine | None = None) -> tuple[pd.DataFrame, str]:
     usado no cabeçalho do dashboard e para decidir se abas que exigem banco
     (Alertas/Auditoria) podem operar em modo completo.
     """
+    banco_acessivel = False
     try:
         from ml.db import ping
 
         if ping():
+            banco_acessivel = True
             eng = _resolver_engine(engine)
             df = pd.read_sql("SELECT * FROM vw_risco_completo ORDER BY data_hora", eng)
             if not df.empty and df["risco_score"].notna().any():
@@ -84,8 +62,9 @@ def carregar_visao(engine: Engine | None = None) -> tuple[pd.DataFrame, str]:
                 df["fatores_principais"] = df["fatores_principais"].apply(normalizar_jsonb)
                 df["recomendacoes"] = df["recomendacoes"].apply(normalizar_jsonb)
                 return df, "PostgreSQL (vw_risco_completo)"
-    except Exception:
-        pass
+    except Exception as exc:
+        banco_acessivel = False
+        logar("consulta_dashboard_falhou", nivel="warning", funcao="carregar_visao", erro=str(exc))
 
     df = pd.read_csv(CSV_PATH)
     df["data_hora"] = pd.to_datetime(df["data_hora"])
@@ -95,7 +74,14 @@ def carregar_visao(engine: Engine | None = None) -> tuple[pd.DataFrame, str]:
             df[coluna] = default
     df["fatores_principais"] = [[] for _ in range(len(df))]
     df["recomendacoes"] = [[] for _ in range(len(df))]
-    return df, "CSV (fallback — data/synthetic_dataset.csv, banco indisponível)"
+    if banco_acessivel:
+        # Banco respondeu, mas a view não tem nenhum score ainda (ex.: leituras existem,
+        # mas `python -m ml.predict` nunca rodou) — não é a mesma situação de "banco fora
+        # do ar", e o rótulo não deveria dizer isso.
+        fonte = "CSV (fallback — banco acessível, mas sem scores; rode python -m ml.predict)"
+    else:
+        fonte = "CSV (fallback — banco indisponível)"
+    return df, fonte
 
 
 def alertas_derivados(df: pd.DataFrame, limite: int = 50) -> pd.DataFrame:
@@ -127,7 +113,8 @@ def carregar_alertas(engine: Engine | None = None, limite: int = 200) -> pd.Data
         )
         with eng.connect() as conn:
             df = pd.read_sql(query, conn, params={"limite": limite})
-    except Exception:
+    except Exception as exc:
+        logar("consulta_dashboard_falhou", nivel="warning", funcao="carregar_alertas", erro=str(exc))
         return pd.DataFrame()
     if not df.empty:
         df["recomendacoes"] = df["recomendacoes"].apply(normalizar_jsonb)
@@ -149,7 +136,8 @@ def carregar_logs(engine: Engine | None = None, limite: int = 100) -> pd.DataFra
         )
         with eng.connect() as conn:
             return pd.read_sql(query, conn, params={"limite": limite})
-    except Exception:
+    except Exception as exc:
+        logar("consulta_dashboard_falhou", nivel="warning", funcao="carregar_logs", erro=str(exc))
         return pd.DataFrame()
 
 
@@ -168,7 +156,8 @@ def carregar_rejeitadas(engine: Engine | None = None, limite: int = 50) -> pd.Da
         )
         with eng.connect() as conn:
             return pd.read_sql(query, conn, params={"limite": limite})
-    except Exception:
+    except Exception as exc:
+        logar("consulta_dashboard_falhou", nivel="warning", funcao="carregar_rejeitadas", erro=str(exc))
         return pd.DataFrame()
 
 
@@ -181,7 +170,8 @@ def contar_auditoria(engine: Engine | None = None) -> dict[str, int]:
             logs = conn.execute(text("SELECT COUNT(*) FROM logs_uso")).scalar() or 0
             rejeitadas = conn.execute(text("SELECT COUNT(*) FROM leituras_rejeitadas")).scalar() or 0
         return {"logs_uso": int(logs), "leituras_rejeitadas": int(rejeitadas)}
-    except Exception:
+    except Exception as exc:
+        logar("consulta_dashboard_falhou", nivel="warning", funcao="contar_auditoria", erro=str(exc))
         return {"logs_uso": 0, "leituras_rejeitadas": 0}
 
 
@@ -191,7 +181,8 @@ def tendencias(engine: Engine | None, por: str, janela: str, limite: int = 500) 
     try:
         eng = _resolver_engine(engine)
         linhas = relatorios_servico.tendencias(eng, por, janela, limite)
-    except Exception:
+    except Exception as exc:
+        logar("consulta_dashboard_falhou", nivel="warning", funcao="tendencias", erro=str(exc))
         return pd.DataFrame()
     df = pd.DataFrame(linhas)
     if not df.empty:
@@ -205,7 +196,8 @@ def ranking(engine: Engine | None = None, limite: int = 10) -> pd.DataFrame:
     try:
         eng = _resolver_engine(engine)
         linhas = relatorios_servico.ranking(eng, limite)
-    except Exception:
+    except Exception as exc:
+        logar("consulta_dashboard_falhou", nivel="warning", funcao="ranking", erro=str(exc))
         return pd.DataFrame()
     return pd.DataFrame(linhas)
 
@@ -216,7 +208,8 @@ def listar_equipamentos(engine: Engine | None = None) -> pd.DataFrame:
     try:
         eng = _resolver_engine(engine)
         linhas = relatorios_servico.listar_equipamentos(eng)
-    except Exception:
+    except Exception as exc:
+        logar("consulta_dashboard_falhou", nivel="warning", funcao="listar_equipamentos", erro=str(exc))
         return pd.DataFrame()
     return pd.DataFrame(linhas)
 

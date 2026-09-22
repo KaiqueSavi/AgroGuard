@@ -15,14 +15,14 @@ critério e recomendações explícitos, e audita cada requisição.
 | Rota | Método | Papéis permitidos | Descrição |
 |---|---|---|---|
 | `/health` | GET | público | Status da API: banco acessível, versão e carregamento do modelo |
-| `/modelo/info` | GET | admin, gestor, seguradora | Versão do modelo, pasta dos artefatos e métricas de `reports/metrics.json` |
+| `/modelo/info` | GET | admin, gestor, seguradora | Versão do modelo e métricas de `reports/metrics.json` (nunca a pasta dos artefatos no servidor) |
 | `/telemetria` | POST | dispositivo, operador, admin | Envia UMA leitura; retorna o score de risco |
-| `/telemetria/lote` | POST | dispositivo, operador, admin | Envia até 500 leituras; retorna aceitos/rejeitados |
+| `/telemetria/lote` | POST | dispositivo, operador, admin | Envia até 500 leituras; retorna aceitos/rejeitados — **cada item é validado individualmente**: um item inválido não derruba os demais |
 | `/equipamentos` | GET | gestor, seguradora, admin | Frota com o último score/classe conhecido |
 | `/equipamentos/{equip_id}/scores` | GET | gestor, seguradora, admin | Histórico de score de UM equipamento (US07) |
 | `/alertas` | GET | gestor, seguradora, admin | Lista alertas (filtro opcional `status=aberto\|reconhecido`) |
 | `/alertas/{id}/reconhecer` | POST | gestor, admin | Marca um alerta como reconhecido |
-| `/relatorios/tendencias` | GET | gestor, seguradora, admin | Tendência semanal/diária por equipamento, região ou operação |
+| `/relatorios/tendencias` | GET | gestor, seguradora, admin | Tendência semanal/diária por equipamento, região ou operação — `limite` (padrão 20, máx. 100) é o número MÁXIMO de chaves (grupos) devolvidas, não de linhas: as chaves de maior score médio no período voltam com TODOS os seus períodos |
 | `/auditoria/logs` | GET | admin | Log de uso da API (uma linha por requisição) |
 | `/auditoria/rejeitadas` | GET | admin | Leituras recusadas pela validação |
 | `/auditoria/{request_id}` | GET | admin | Encadeia log + leitura + score + alerta de um `request_id` |
@@ -75,6 +75,14 @@ Quando `risco_score >= 80` (critério de alerta, `ml.features.ALERT_THRESHOLD`),
 traz `alerta: true`, `nivel_alerta` (`Alto` ou `Critico`) e `recomendacoes` não vazias (ex.:
 `ADIAR_OPERACAO`, `REDUZIR_VELOCIDADE`) — a mesma leitura já aparece em `GET /alertas`.
 
+## `POST /telemetria/lote` — validação por item
+
+`leituras` aceita até 500 objetos; cada um é validado (schema + regras de negócio)
+INDIVIDUALMENTE. Um item com `umidade_solo` fora de faixa, por exemplo, vira uma entrada em
+`rejeitados` (`{"indice", "codigo", "mensagem"}`) — os demais itens do lote continuam sendo
+processados e aparecem em `aceitos` normalmente. A resposta é sempre `200`, mesmo que todos os
+itens tenham sido rejeitados; o formato é `{"aceitos": [...], "rejeitados": [...]}`.
+
 ## Erros
 
 Toda falha de negócio devolve o mesmo formato (`ErroOut`) e o header `X-Request-Id`:
@@ -92,10 +100,17 @@ Toda falha de negócio devolve o mesmo formato (`ErroOut`) e o header `X-Request
 | `nao_autenticado` | 401 | `X-API-Key` ausente ou inválida |
 | `assinatura` | 401 | `X-Signature` ausente (quando exigida) ou não confere com o corpo |
 | `nao_autorizado` | 403 | Chave válida, mas papel sem acesso à rota |
-| `limite_excedido` | 429 | Rate limit por chave excedido |
+| `limite_excedido` | 429 | Rate limit excedido (por chave ou, para requisições não autenticadas/com chave inválida, por IP) |
 | `nao_encontrado` | 404 | Recurso inexistente (alerta, `request_id` de auditoria) |
+| `payload_grande` | 413 | Corpo da requisição maior que 1 MB (recusado antes de qualquer parsing) |
 | `modelo_indisponivel` | 503 | Modelo de ML não carregado (`python -m ml.train` não rodou) |
 | `erro_interno` | 500 | Erro inesperado — nunca expõe stack trace na resposta |
+
+`detalhe` de um erro `validacao` (422) nunca ecoa o valor recebido (`input`) nem a `url` do
+Pydantic — só os campos que ajudam a corrigir o payload (`loc`, `msg`, `type`).
+
+`GET /auditoria/{request_id}` exige um `request_id` no formato UUID; um valor que não é um UUID
+válido retorna `422` (erro de validação de path), não `404`.
 
 Toda leitura recusada (`validacao`, `inconsistencia`, `equip_desconhecido`, `duplicado`) também
 gera uma linha em `leituras_rejeitadas`, e toda requisição gera uma linha em `logs_uso` — ver

@@ -7,6 +7,7 @@ consulta vive em `auditoria.servico`.
 """
 from __future__ import annotations
 
+import uuid
 from typing import Any
 
 from fastapi import APIRouter, Depends, Query, Request
@@ -40,8 +41,8 @@ def rejeitadas(
 
 @router.get("/{request_id}")
 def rastrear(
-    request_id: str,
+    request_id: uuid.UUID,
     request: Request,
     identidade: Identidade = Depends(exigir_papel(Papel.ADMIN)),
 ) -> dict[str, Any]:
-    return auditoria_servico.rastrear(request.app.state.engine, request_id)
+    return auditoria_servico.rastrear(request.app.state.engine, str(request_id))

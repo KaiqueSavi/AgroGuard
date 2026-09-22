@@ -132,16 +132,23 @@ def _para_jsonb(valor: Any) -> str:
 
 
 def historico_scores(engine: Engine, equip_id: str, limite: int) -> list[dict[str, Any]]:
-    """Histórico de scores de UM equipamento, do mais antigo ao mais recente — US07."""
+    """Histórico de scores de UM equipamento, do mais antigo ao mais recente — US07.
+
+    `limite` seleciona as leituras MAIS RECENTES (subconsulta `ORDER BY data_hora DESC`);
+    a ordenação final continua crescente — `ORDER BY data_hora` sem esse `DESC` na consulta
+    de fora devolveria as `limite` leituras MAIS ANTIGAS, o oposto do que US07 pede."""
     query = text(
         """
-        SELECT
-            id AS leitura_id, equip_id, data_hora, risco_score, classe_risco,
-            alerta, fatores_principais, recomendacoes, modelo_versao
-        FROM vw_risco_completo
-        WHERE equip_id = :equip_id AND risco_score IS NOT NULL
+        SELECT * FROM (
+            SELECT
+                id AS leitura_id, equip_id, data_hora, risco_score, classe_risco,
+                alerta, fatores_principais, recomendacoes, modelo_versao
+            FROM vw_risco_completo
+            WHERE equip_id = :equip_id AND risco_score IS NOT NULL
+            ORDER BY data_hora DESC
+            LIMIT :limite
+        ) mais_recentes
         ORDER BY data_hora
-        LIMIT :limite
         """
     )
     with engine.connect() as conn:
@@ -150,9 +157,12 @@ def historico_scores(engine: Engine, equip_id: str, limite: int) -> list[dict[st
 
 
 def info_modelo(modelos: Modelos | None, erro: str | None) -> dict[str, Any]:
-    """Resumo do estado do modelo carregado — usado por `GET /modelo/info`."""
+    """Resumo do estado do modelo carregado — usado por `GET /modelo/info`.
+
+    Nunca inclui `modelos.origem` (a pasta dos artefatos no sistema de arquivos do servidor):
+    é um caminho local, não informação de negócio, e não deve vazar para clientes da API."""
     if modelos is None:
-        return {"carregado": False, "erro": erro, "modelo_versao": None, "pasta": None, "metricas": None}
+        return {"carregado": False, "erro": erro, "modelo_versao": None, "metricas": None}
 
     metricas: dict[str, Any] | None = None
     if METRICS_PATH.exists():
@@ -170,6 +180,5 @@ def info_modelo(modelos: Modelos | None, erro: str | None) -> dict[str, Any]:
         "carregado": True,
         "erro": None,
         "modelo_versao": modelos.versao,
-        "pasta": str(modelos.origem) if modelos.origem else None,
         "metricas": metricas,
     }

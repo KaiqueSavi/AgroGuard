@@ -182,6 +182,93 @@ def test_gerar_relatorio_sem_dados_nao_lanca(tmp_path):
 
 
 # ---------------------------------------------------------------------------
+# F4 — `tendencias`: `limite` seleciona GRUPOS inteiros, não corta linhas no meio de um grupo
+# ---------------------------------------------------------------------------
+@pytest.fixture
+def _seed_tendencias_grupos(db_engine):
+    """2 equipamentos PRÓPRIOS (namespace `EQ-TG*`, datas em 2031 — não colide com nenhum
+    outro módulo de teste), com score alto e 2 semanas cada, para provar que `limite` corta
+    por CHAVE (equipamento), nunca no meio de uma chave já selecionada."""
+    equip_ids = ["EQ-TG01", "EQ-TG02"]
+    agora = datetime(2031, 1, 12, 12, 0, 0)
+    with db_engine.begin() as conn:
+        for equip_id in equip_ids:
+            conn.execute(
+                text(
+                    """
+                    INSERT INTO equipamentos (equip_id, tipo_equip, idade_equipamento_anos, fazenda, regiao)
+                    VALUES (:id, 'Trator', 5, 'FAZ-TG', 'Regiao-TG')
+                    ON CONFLICT (equip_id) DO NOTHING
+                    """
+                ),
+                {"id": equip_id},
+            )
+        for semana in range(2):
+            base = agora - timedelta(weeks=(1 - semana))
+            for equip_id in equip_ids:
+                for i in range(3):
+                    data_hora = base + timedelta(hours=i * 5)
+                    leitura_id = conn.execute(
+                        text(
+                            """
+                            INSERT INTO leituras_telemetria (
+                                equip_id, data_hora, latitude, longitude, velocidade_kmh,
+                                inclinacao_graus, vibracao_g, precip_24h_mm, precip_prev_6h_mm,
+                                umidade_solo, vento_max_kmh, dist_corpo_dagua_m, declividade_pct,
+                                tipo_operacao, turno, jornada_acumulada_h, dias_desde_manutencao,
+                                experiencia_operador_anos
+                            ) VALUES (
+                                :equip_id, :data_hora, -12.5, -55.5, 20.0,
+                                3.0, 0.5, 10.0, 2.0, 0.4, 15.0, 300, 2.0,
+                                'campo', 'manha', 4.0, 10, 8
+                            )
+                            RETURNING id
+                            """
+                        ),
+                        {"equip_id": equip_id, "data_hora": data_hora},
+                    ).scalar_one()
+                    conn.execute(
+                        text(
+                            """
+                            INSERT INTO scores_risco (
+                                leitura_id, risco_score, classe_risco, alerta,
+                                fatores_principais, recomendacoes
+                            ) VALUES (:leitura_id, 95, 'Critico', true, '[]', '[]')
+                            """
+                        ),
+                        {"leitura_id": leitura_id},
+                    )
+    return equip_ids
+
+
+def test_tendencias_limite_conta_grupos_nao_linhas(db_engine, _seed_tendencias_grupos):
+    from agroguard.relatorios import servico as relatorios_servico
+
+    resultado_2 = relatorios_servico.tendencias(db_engine, "equipamento", "semana", limite=2)
+    resultado_50 = relatorios_servico.tendencias(db_engine, "equipamento", "semana", limite=50)
+
+    chaves_2 = {linha["chave"] for linha in resultado_2}
+    assert len(chaves_2) <= 2
+
+    def _periodos_por_chave(linhas):
+        agrupado: dict[str, set] = {}
+        for linha in linhas:
+            agrupado.setdefault(linha["chave"], set()).add(linha["periodo"])
+        return agrupado
+
+    periodos_2 = _periodos_por_chave(resultado_2)
+    periodos_50 = _periodos_por_chave(resultado_50)
+
+    # cada chave que entrou no recorte de limite=2 aparece com TODOS os seus períodos —
+    # nunca um subconjunto cortado por um LIMIT de linhas.
+    for chave in chaves_2:
+        assert periodos_2[chave] == periodos_50[chave]
+
+    # limite=50 é folgado o bastante para cobrir os equipamentos semeados por este teste.
+    assert set(_seed_tendencias_grupos) <= set(periodos_50)
+
+
+# ---------------------------------------------------------------------------
 # normalizar_jsonb — puro pandas, sem banco
 # ---------------------------------------------------------------------------
 @pytest.mark.parametrize(

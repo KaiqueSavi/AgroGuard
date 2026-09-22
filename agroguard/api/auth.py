@@ -18,10 +18,16 @@ from dataclasses import dataclass
 from enum import Enum
 from threading import Lock
 
-from fastapi import Request
+from fastapi import Depends, Request
+from fastapi.security import APIKeyHeader
 
 from agroguard.config import get_settings
 from agroguard.erros import AssinaturaInvalida, LimiteExcedido, NaoAutenticado, NaoAutorizado
+
+# `auto_error=False`: queremos continuar controlando a mensagem/código do 401 nós mesmos
+# (via `NaoAutenticado`) — este objeto serve só para declarar o esquema de segurança no
+# OpenAPI (e assim habilitar o botão "Authorize" no Swagger em `/docs`).
+_api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
 
 
 class Papel(str, Enum):
@@ -91,10 +97,19 @@ def exigir_papel(*papeis: Papel):
     por chave e valida a assinatura de integridade opcional/obrigatória.
     """
 
-    async def dependencia(request: Request) -> Identidade:
+    async def dependencia(
+        request: Request,
+        chave_recebida: str | None = Depends(_api_key_header),
+    ) -> Identidade:
         settings = get_settings()
 
-        chave_recebida = request.headers.get("X-API-Key")
+        # Rate limit por IP, ANTES de validar a chave: sem isso, uma chave inválida (ou
+        # ausente) nunca é limitada e um flood de requisições não autenticadas passa livre
+        # (cada uma ainda vira uma linha em `logs_uso` — ver `agroguard.api.main`).
+        ip = request.client.host if request.client else "desconhecido"
+        if not _balde.permitir(f"ip:{ip}", settings.rate_limit_por_min):
+            raise LimiteExcedido()
+
         if not chave_recebida:
             raise NaoAutenticado("Cabeçalho X-API-Key ausente.")
 

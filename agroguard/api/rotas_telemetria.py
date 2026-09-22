@@ -14,7 +14,6 @@ from fastapi import APIRouter, Depends, Request, status
 
 from agroguard.api.auth import Identidade, Papel, exigir_papel
 from agroguard.api.schemas import LoteIn, LoteResultado, RejeicaoLoteItem, ScoreOut, TelemetriaIn
-from agroguard.erros import ErroAgroGuard
 from agroguard.telemetria import servico as telemetria_servico
 
 router = APIRouter(tags=["telemetria"])
@@ -41,17 +40,11 @@ def enviar_lote(
     request: Request,
     identidade: Identidade = Depends(exigir_papel(*_PAPEIS_TELEMETRIA)),
 ) -> LoteResultado:
-    aceitos: list[ScoreOut] = []
-    rejeitados: list[RejeicaoLoteItem] = []
-
-    for indice, payload in enumerate(lote.leituras):
-        request_id_item = str(uuid.uuid4())
-        try:
-            resultado = telemetria_servico.processar(
-                request.app.state.engine, request.app.state.modelos, payload, identidade, request_id_item
-            )
-            aceitos.append(ScoreOut(**resultado))
-        except ErroAgroGuard as exc:
-            rejeitados.append(RejeicaoLoteItem(indice=indice, codigo=exc.codigo, mensagem=exc.mensagem))
-
-    return LoteResultado(aceitos=aceitos, rejeitados=rejeitados)
+    request_id_lote = getattr(request.state, "request_id", None) or str(uuid.uuid4())
+    resultado = telemetria_servico.processar_lote(
+        request.app.state.engine, request.app.state.modelos, lote.leituras, identidade, request_id_lote
+    )
+    return LoteResultado(
+        aceitos=[ScoreOut(**item) for item in resultado["aceitos"]],
+        rejeitados=[RejeicaoLoteItem(**item) for item in resultado["rejeitados"]],
+    )

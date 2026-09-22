@@ -14,18 +14,27 @@ import json
 import time
 from datetime import datetime, timedelta, timezone
 from typing import Any
-from uuid import UUID
+from uuid import UUID, uuid4
 
+from pydantic import ValidationError
 from sqlalchemy import text
 from sqlalchemy.engine import Connection, Engine
 
 from agroguard.alertas import servico as alertas_servico
 from agroguard.api.auth import Identidade
 from agroguard.api.schemas import TelemetriaIn
-from agroguard.erros import EquipamentoDesconhecido, Inconsistencia, LeituraDuplicada
+from agroguard.erros import EquipamentoDesconhecido, ErroAgroGuard, Inconsistencia, LeituraDuplicada
 from agroguard.erros import ModeloIndisponivel as ModeloIndisponivelHTTP
 from agroguard.risco import servico as risco_servico
 from ml.inferencia import Modelos
+
+# Regras de consistência ENTRE campos (`_validar_consistencia`) — nomeadas para que não
+# fiquem duplicadas como literais soltos em `simulador/fontes/telemetria.py`, que precisa
+# gerar leituras dentro dessas mesmas faixas.
+VELOCIDADE_MAX_PARADO = 1.0
+VELOCIDADE_MIN_TRANSPORTE = 5.0
+UMIDADE_MAX_SEM_CHUVA = 0.9
+TOLERANCIA_FUTURO_MIN = 5
 
 
 def _normalizar_data_hora(data_hora: datetime) -> datetime:
@@ -40,22 +49,22 @@ def _validar_consistencia(payload: TelemetriaIn, data_hora: datetime) -> None:
     velocidade = payload.telemetria.velocidade_kmh
     tipo_operacao = payload.operacao.tipo_operacao
 
-    if tipo_operacao == "parado" and velocidade >= 1.0:
+    if tipo_operacao == "parado" and velocidade >= VELOCIDADE_MAX_PARADO:
         raise Inconsistencia(
-            f"tipo_operacao='parado' exige velocidade_kmh < 1.0 (recebido {velocidade})."
+            f"tipo_operacao='parado' exige velocidade_kmh < {VELOCIDADE_MAX_PARADO} (recebido {velocidade})."
         )
-    if tipo_operacao == "transporte" and velocidade < 5.0:
+    if tipo_operacao == "transporte" and velocidade < VELOCIDADE_MIN_TRANSPORTE:
         raise Inconsistencia(
-            f"tipo_operacao='transporte' exige velocidade_kmh >= 5 (recebido {velocidade})."
+            f"tipo_operacao='transporte' exige velocidade_kmh >= {VELOCIDADE_MIN_TRANSPORTE} (recebido {velocidade})."
         )
-    if payload.ambiente.umidade_solo > 0.9 and payload.ambiente.precip_24h_mm == 0:
+    if payload.ambiente.umidade_solo > UMIDADE_MAX_SEM_CHUVA and payload.ambiente.precip_24h_mm == 0:
         raise Inconsistencia(
-            "umidade_solo > 0.9 sem nenhuma precipitação nas últimas 24h é inconsistente."
+            f"umidade_solo > {UMIDADE_MAX_SEM_CHUVA} sem nenhuma precipitação nas últimas 24h é inconsistente."
         )
 
-    limite_futuro = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(minutes=5)
+    limite_futuro = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(minutes=TOLERANCIA_FUTURO_MIN)
     if data_hora > limite_futuro:
-        raise Inconsistencia("data_hora não pode estar mais de 5 minutos no futuro.")
+        raise Inconsistencia(f"data_hora não pode estar mais de {TOLERANCIA_FUTURO_MIN} minutos no futuro.")
 
 
 def _payload_canonico(payload: TelemetriaIn) -> tuple[dict[str, Any], str, str]:
@@ -65,9 +74,13 @@ def _payload_canonico(payload: TelemetriaIn) -> tuple[dict[str, Any], str, str]:
     return bruto, canonico, hash_sha256
 
 
-def _origem_leitura(identidade: Identidade) -> str:
-    """Dispositivos simulados (kid iniciado em 'sim') marcam a leitura como 'simulador'."""
-    return "simulador" if identidade.kid.startswith("sim") else "api"
+def origem_leitura(identidade: Identidade | None) -> str:
+    """Dispositivos simulados (kid iniciado em 'sim') marcam a leitura como 'simulador'.
+
+    Pública: também usada por `agroguard.api.main` para rotular rejeições de payload que
+    nem chegaram a virar um `TelemetriaIn` válido — `identidade` pode ser `None` ali (a
+    requisição pode ter falhado a validação antes mesmo de haver uma identidade resolvida)."""
+    return "simulador" if identidade and identidade.kid.startswith("sim") else "api"
 
 
 def _rejeitar(
@@ -161,7 +174,7 @@ def receber(
         _rejeitar(conn, "duplicado", motivo, payload_bruto, payload_hash, request_id, origem)
         raise LeituraDuplicada(motivo)
 
-    origem_leitura = _origem_leitura(identidade)
+    origem_gravada = origem_leitura(identidade)
     leitura_id = conn.execute(
         text(
             """
@@ -204,7 +217,7 @@ def receber(
             "jornada_acumulada_h": payload.operacao.jornada_acumulada_h,
             "dias_desde_manutencao": payload.operacao.dias_desde_manutencao,
             "experiencia_operador_anos": payload.operacao.experiencia_operador_anos,
-            "origem": origem_leitura,
+            "origem": origem_gravada,
             "payload_hash": payload_hash,
             "payload_bruto": json.dumps(payload_bruto),
             "request_id": request_id,
@@ -248,7 +261,7 @@ def processar(
         raise ModeloIndisponivelHTTP("Modelo de risco não carregado — rode `python -m ml.train`.")
 
     request_id_str = str(request_id)
-    origem = _origem_leitura(identidade)
+    origem = origem_leitura(identidade)
 
     inicio = time.perf_counter()
     with engine.begin() as conn:
@@ -271,3 +284,52 @@ def processar(
         "request_id": request_id_str,
         "latencia_ms": score["latencia_ms"],
     }
+
+
+def processar_lote(
+    engine: Engine,
+    modelos: Modelos | None,
+    itens: list[dict[str, Any]],
+    identidade: Identidade,
+    request_id_lote: str | UUID,
+) -> dict[str, Any]:
+    """
+    Processa cada item de `POST /telemetria/lote` INDIVIDUALMENTE: um item que não é sequer
+    um `TelemetriaIn` válido (schema) vira uma rejeição pontual (`codigo='validacao'`), sem
+    derrubar os demais itens do lote — diferente de validar `itens` como `list[TelemetriaIn]`
+    na entrada da rota, que rejeitaria o lote inteiro em 422 por causa de um item ruim.
+    """
+    aceitos: list[dict[str, Any]] = []
+    rejeitados: list[dict[str, Any]] = []
+    origem = origem_leitura(identidade)
+
+    for indice, item in enumerate(itens):
+        request_id_item = str(uuid4())
+        try:
+            payload = TelemetriaIn.model_validate(item)
+        except ValidationError as exc:
+            motivo = "; ".join(str(e.get("msg", e)) for e in exc.errors()) or "Payload inválido."
+            payload_bruto = item if isinstance(item, dict) else None
+            payload_hash = None
+            if payload_bruto is not None:
+                canonico = json.dumps(payload_bruto, sort_keys=True, separators=(",", ":"))
+                payload_hash = hashlib.sha256(canonico.encode("utf-8")).hexdigest()
+            registrar_rejeicao(
+                engine,
+                codigo="validacao",
+                motivo=motivo,
+                payload=payload_bruto,
+                payload_hash=payload_hash,
+                request_id=request_id_item,
+                origem=origem,
+            )
+            rejeitados.append({"indice": indice, "codigo": "validacao", "mensagem": motivo})
+            continue
+
+        try:
+            resultado = processar(engine, modelos, payload, identidade, request_id_item)
+            aceitos.append(resultado)
+        except ErroAgroGuard as exc:
+            rejeitados.append({"indice": indice, "codigo": exc.codigo, "mensagem": exc.mensagem})
+
+    return {"aceitos": aceitos, "rejeitados": rejeitados}

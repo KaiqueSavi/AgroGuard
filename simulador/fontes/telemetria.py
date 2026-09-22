@@ -19,6 +19,8 @@ from random import Random
 
 import pandas as pd
 
+from agroguard.telemetria.servico import VELOCIDADE_MAX_PARADO, VELOCIDADE_MIN_TRANSPORTE
+
 
 def _clip(valor: float, minimo: float, maximo: float) -> float:
     return max(minimo, min(maximo, valor))
@@ -30,9 +32,10 @@ def amostrar(linha: pd.Series, agora: datetime, rng: Random) -> dict:
 
     velocidade = float(linha["velocidade_kmh"]) + rng.gauss(0.0, 1.5)
     if tipo_operacao == "parado":
-        velocidade = _clip(velocidade, 0.0, 0.9)
+        # Margem de 0.1 abaixo do limiar: a regra é `< VELOCIDADE_MAX_PARADO`, não `<=`.
+        velocidade = _clip(velocidade, 0.0, VELOCIDADE_MAX_PARADO - 0.1)
     elif tipo_operacao == "transporte":
-        velocidade = _clip(velocidade, 5.0, 120.0)
+        velocidade = _clip(velocidade, VELOCIDADE_MIN_TRANSPORTE, 120.0)
     else:
         velocidade = _clip(velocidade, 0.0, 120.0)
 

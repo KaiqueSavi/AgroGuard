@@ -53,7 +53,12 @@ class TelemetriaIn(BaseModel):
 
 
 class LoteIn(BaseModel):
-    leituras: list[TelemetriaIn] = Field(..., min_length=1, max_length=500)
+    """`leituras` é uma lista de dicionários brutos, não de `TelemetriaIn`: a validação de
+    CADA item acontece individualmente em `telemetria.servico.processar_lote` — se fosse
+    `list[TelemetriaIn]` aqui, um único item inválido derrubaria o lote inteiro em 422 antes
+    de qualquer item válido ser processado."""
+
+    leituras: list[dict[str, Any]] = Field(..., min_length=1, max_length=500)
 
 
 class ScoreOut(BaseModel):
