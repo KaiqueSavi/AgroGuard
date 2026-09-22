@@ -602,7 +602,7 @@ Figuras geradas pelo pipeline (em `reports/figures/`): a **matriz de confusão**
 
 ### 📌 Pendências de entrega (equipe) — Sprint 2 (histórico)
 
-- [ ] **Convidar os tutores como colaboradores** do repositório: `nicollycrs` e `SabrinaOtoni`. ⚠️ Apenas o **dono do repositório** (`willbatista89`, admin) consegue enviar o convite — o Kaique é colaborador, não admin.
+- [x] **Convidar os tutores como colaboradores** — o repositório foi migrado para a conta do Kaique (`KaiqueSavi/Enterprise-Challenge-Sompo-AgroGuard`, privado), que agora envia os convites.
 - [ ] **Gravar o vídeo** (≤ 5 min, "não listado") e colar o link no README (placeholder abaixo).
 - [ ] **Preencher os nomes/RMs reais** da equipe na seção [Equipe e Divisão de Tarefas](#12-equipe-e-divisão-de-tarefas).
 
@@ -837,7 +837,7 @@ Roteiro minuto a minuto em [`docs/roteiro-video.md`](docs/roteiro-video.md): con
 ### ✅ Checklist de entrega (equipe)
 
 - [ ] Gravar o vídeo (≤ 5 min, narração humana, YouTube "não listado") e colar o link acima.
-- [ ] Confirmar que o repositório é **privado** e que o perfil **`fiap-tutoria`** foi convidado como colaborador (apenas o dono `willbatista89` consegue enviar o convite; o convite expira em 7 dias).
+- [ ] Confirmar que o repositório é **privado** e que o perfil **`fiap-tutoria`** aceitou o convite de colaborador (o convite expira em 7 dias).
 - [ ] Não alterar o repositório após a data-limite (28/09/2026).
 
 ---
