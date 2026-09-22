@@ -7,15 +7,13 @@
 
 ---
 
-## 👥 Integrantes
+## 👥 Integrante
 
 | RM | Nome |
 |---|---|
-| RM572559 | Daniel |
-| RM562072 | Kaique |
-| RM571013 | Willian |
-| RM565326 | Pedro |
-| RM571574 | Vinícius |
+| RM562072 | Kaique Savi |
+
+> Os demais integrantes do grupo original deixaram o curso; a partir da Sprint 3 o projeto foi desenvolvido individualmente.
 
 ---
 
@@ -818,13 +816,9 @@ gantt
 
 | Integrante | RM | Sprints 1 e 2 | Sprints 3 e 4 (esta entrega) |
 |---|---|---|---|
-| **Kaique** | RM562072 | Dataset simulado, banco PostgreSQL, modelos v0.2, dashboard | **Desenvolvimento integral**: backend integrador (FastAPI), schema v2, segurança e auditoria, simulador de fontes, preparação de dados e modelo v0.3, testes de integração, dashboard v2 e relatórios, documentação (README, arquitetura, validação, roteiro do vídeo) |
-| Daniel | RM572559 | Proposta e arquitetura (Sprint 1) | — |
-| Willian | RM571013 | Proposta e arquitetura (Sprint 1); repositório | — |
-| Pedro | RM565326 | Proposta e arquitetura (Sprint 1) | — |
-| Vinícius | RM571574 | Proposta e arquitetura (Sprint 1) | — |
+| **Kaique Savi** | RM562072 | Dataset simulado, banco PostgreSQL, modelos v0.2, dashboard; proposta e arquitetura | **Desenvolvimento integral**: backend integrador (FastAPI), schema v2, segurança e auditoria, simulador de fontes, preparação de dados e modelo v0.3, testes de integração, dashboard v2 e relatórios, documentação (README, arquitetura, validação, roteiro do vídeo) |
 
-> As Sprints 3 e 4 foram desenvolvidas integralmente por **Kaique (RM562072)**, conforme o histórico de commits do branch `sprint-3-4`.
+> O grupo original tinha cinco integrantes; os demais deixaram o curso ao longo do Challenge. As Sprints 3 e 4 foram desenvolvidas integralmente por **Kaique Savi (RM562072)**, conforme o histórico de commits.
 
 ---
 
