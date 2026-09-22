@@ -816,15 +816,15 @@ gantt
 
 ## 12. Equipe e Divisão de Tarefas
 
-| Integrante | RM | Função principal | Responsabilidades Sprint 1 |
+| Integrante | RM | Sprints 1 e 2 | Sprints 3 e 4 (esta entrega) |
 |---|---|---|---|
-| [Nome 1] | RMxxxxxx | Product Owner / Negócio | Personas, user stories, contexto |
-| [Nome 2] | RMxxxxxx | Data Scientist | Modelo preditivo, dataset simulado |
-| [Nome 3] | RMxxxxxx | Arquiteto / Backend | Arquitetura, fluxo de dados |
-| [Nome 4] | RMxxxxxx | Front-end / UX | Mockups, definição de telas |
-| [Nome 5] | RMxxxxxx | DevOps / Segurança | Infra proposta, segurança/LGPD |
+| **Kaique** | RM562072 | Dataset simulado, banco PostgreSQL, modelos v0.2, dashboard | **Desenvolvimento integral**: backend integrador (FastAPI), schema v2, segurança e auditoria, simulador de fontes, preparação de dados e modelo v0.3, testes de integração, dashboard v2 e relatórios, documentação (README, arquitetura, validação, roteiro do vídeo) |
+| Daniel | RM572559 | Proposta e arquitetura (Sprint 1) | — |
+| Willian | RM571013 | Proposta e arquitetura (Sprint 1); repositório | — |
+| Pedro | RM565326 | Proposta e arquitetura (Sprint 1) | — |
+| Vinícius | RM571574 | Proposta e arquitetura (Sprint 1) | — |
 
-> 🗂️ A gestão de tarefas é feita no **Trello**: [link do board]
+> As Sprints 3 e 4 foram desenvolvidas integralmente por **Kaique (RM562072)**, conforme o histórico de commits do branch `sprint-3-4`.
 
 ---
 
@@ -838,7 +838,6 @@ Roteiro minuto a minuto em [`docs/roteiro-video.md`](docs/roteiro-video.md): con
 
 - [ ] Gravar o vídeo (≤ 5 min, narração humana, YouTube "não listado") e colar o link acima.
 - [ ] Confirmar que o repositório é **privado** e que o perfil **`fiap-tutoria`** foi convidado como colaborador (apenas o dono `willbatista89` consegue enviar o convite; o convite expira em 7 dias).
-- [ ] Preencher a divisão de tarefas das Sprints 3/4 na seção 12.
 - [ ] Não alterar o repositório após a data-limite (28/09/2026).
 
 ---
