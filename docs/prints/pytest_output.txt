@@ -1,0 +1,70 @@
+.........................................................                [100%]
+=============================== warnings summary ===============================
+tests/test_api.py::test_post_telemetria_valida_retorna_201
+  /Users/kaiquesavi/Documents/Github/agroguard-sprint2/.venv/lib/python3.11/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+==================================== PASSES ====================================
+___________________ test_post_telemetria_valida_retorna_201 ____________________
+---------------------------- Captured stdout setup -----------------------------
+{"ts": "2026-09-22T13:17:10.224260+00:00", "nivel": "INFO", "evento": "modelos_carregados", "campos": {"modelo_versao": "vtest"}}
+=========================== short test summary info ============================
+PASSED tests/test_api.py::test_post_telemetria_valida_retorna_201
+PASSED tests/test_api.py::test_umidade_fora_da_faixa_retorna_422_e_registra_rejeicao
+PASSED tests/test_api.py::test_leitura_duplicada_retorna_409_e_mantem_uma_linha
+PASSED tests/test_api.py::test_parado_com_velocidade_alta_retorna_422_inconsistencia
+PASSED tests/test_api.py::test_equipamento_desconhecido_retorna_422
+PASSED tests/test_api.py::test_lote_com_um_item_invalido
+PASSED tests/test_api.py::test_alerta_critico_gera_recomendacoes_e_fica_rastreavel
+PASSED tests/test_api.py::test_tendencias_por_regiao
+PASSED tests/test_api.py::test_auditoria_encadeia_por_request_id
+PASSED tests/test_api.py::test_auditoria_request_id_desconhecido_retorna_404
+PASSED tests/test_api.py::test_health_retorna_modelo_versao
+PASSED tests/test_auth.py::test_sem_chave_retorna_401
+PASSED tests/test_auth.py::test_chave_errada_retorna_401
+PASSED tests/test_auth.py::test_operador_nao_acessa_auditoria
+PASSED tests/test_auth.py::test_seguradora_nao_envia_telemetria
+PASSED tests/test_auth.py::test_assinatura_invalida_retorna_401
+PASSED tests/test_auth.py::test_rate_limit_excedido
+PASSED tests/test_inferencia.py::test_classe_por_score_bins[0-Baixo]
+PASSED tests/test_inferencia.py::test_classe_por_score_bins[30-Baixo]
+PASSED tests/test_inferencia.py::test_classe_por_score_bins[31-Medio]
+PASSED tests/test_inferencia.py::test_classe_por_score_bins[60-Medio]
+PASSED tests/test_inferencia.py::test_classe_por_score_bins[61-Alto]
+PASSED tests/test_inferencia.py::test_classe_por_score_bins[80-Alto]
+PASSED tests/test_inferencia.py::test_classe_por_score_bins[81-Critico]
+PASSED tests/test_inferencia.py::test_classe_por_score_bins[100-Critico]
+PASSED tests/test_inferencia.py::test_prever_retorna_colunas_do_contrato_e_indice_original
+PASSED tests/test_inferencia.py::test_prever_e_deterministico
+PASSED tests/test_inferencia.py::test_fatores_principais_tem_ate_3_itens_ordenados_por_contribuicao_absoluta
+PASSED tests/test_inferencia.py::test_linha_molhada_perto_de_agua_declive_tem_score_maior_que_linha_seca_longe_plana
+PASSED tests/test_inferencia.py::test_prever_uma_devolve_um_dict_com_as_mesmas_chaves
+PASSED tests/test_integracao.py::test_reconciliacao_sem_perda
+PASSED tests/test_integracao.py::test_consistencia_score_modelo
+PASSED tests/test_integracao.py::test_lote_e_assinatura
+PASSED tests/test_integracao.py::test_rastreabilidade
+PASSED tests/test_integracao.py::test_simulador_determinista
+PASSED tests/test_preparacao.py::test_remove_duplicatas_exatas
+PASSED tests/test_preparacao.py::test_remove_duplicatas_por_chave_mesmo_com_outros_valores_diferentes
+PASSED tests/test_preparacao.py::test_faltantes_numericos_preenchidos_com_mediana_por_tipo_equip
+PASSED tests/test_preparacao.py::test_fora_de_faixa_e_clipado_e_contado
+PASSED tests/test_preparacao.py::test_estrito_levanta_em_vez_de_clipar
+PASSED tests/test_preparacao.py::test_categoria_invalida_e_rejeitada
+PASSED tests/test_preparacao.py::test_linhas_sem_chave_sao_rejeitadas
+PASSED tests/test_preparacao.py::test_dataframe_vazio_levanta_dados_invalidos
+PASSED tests/test_preparacao.py::test_todas_as_linhas_rejeitadas_levanta_dados_invalidos
+PASSED tests/test_relatorio.py::test_gerar_relatorio_cria_md_e_figuras_com_secoes_e_top5
+PASSED tests/test_relatorio.py::test_gerar_relatorio_sem_dados_nao_lanca
+PASSED tests/test_relatorio.py::test_normalizar_jsonb[None-esperado0]
+PASSED tests/test_relatorio.py::test_normalizar_jsonb[valor1-esperado1]
+PASSED tests/test_relatorio.py::test_normalizar_jsonb[valor2-esperado2]
+PASSED tests/test_relatorio.py::test_normalizar_jsonb[valor3-esperado3]
+PASSED tests/test_relatorio.py::test_normalizar_jsonb[[]-esperado4]
+PASSED tests/test_relatorio.py::test_normalizar_jsonb[[{"acao": "MONITORAR"}]-esperado5]
+PASSED tests/test_relatorio.py::test_normalizar_jsonb[{"acao": "MONITORAR"}-esperado6]
+PASSED tests/test_relatorio.py::test_normalizar_jsonb[-esperado7]
+PASSED tests/test_relatorio.py::test_normalizar_jsonb[n\xe3o \xe9 json-esperado8]
+PASSED tests/test_relatorio.py::test_normalizar_jsonb_trata_nan_como_lista_vazia
+PASSED tests/test_relatorio.py::test_streamlit_app_compila
+57 passed, 1 warning in 7.60s

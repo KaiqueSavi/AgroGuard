@@ -1,0 +1,102 @@
+[0000] tipo=valido    equip=EQ-001 status=201 score=19 classe=Baixo
+[0001] tipo=valido    equip=EQ-002 status=201 score=26 classe=Baixo
+[0002] tipo=valido    equip=EQ-003 status=201 score=22 classe=Baixo
+[0003] tipo=valido    equip=EQ-004 status=201 score=42 classe=Medio
+[0004] tipo=valido    equip=EQ-005 status=201 score=23 classe=Baixo
+[0005] tipo=valido    equip=EQ-006 status=201 score=29 classe=Baixo
+[0006] tipo=valido    equip=EQ-007 status=201 score=16 classe=Baixo
+[0007] tipo=valido    equip=EQ-008 status=201 score=32 classe=Medio
+[0008] tipo=valido    equip=EQ-009 status=201 score=65 classe=Alto
+[0009] tipo=valido    equip=EQ-010 status=201 score=27 classe=Baixo
+[0010] tipo=valido    equip=EQ-011 status=201 score=16 classe=Baixo
+[0011] tipo=valido    equip=EQ-012 status=201 score=19 classe=Baixo
+[0012] tipo=valido    equip=EQ-013 status=201 score=25 classe=Baixo
+[0013] tipo=valido    equip=EQ-014 status=201 score=40 classe=Medio
+[0014] tipo=valido    equip=EQ-015 status=201 score=23 classe=Baixo
+[0015] tipo=valido    equip=EQ-016 status=201 score=23 classe=Baixo
+[0016] tipo=valido    equip=EQ-017 status=201 score=19 classe=Baixo
+[0017] tipo=valido    equip=EQ-018 status=201 score=25 classe=Baixo
+[0018] tipo=valido    equip=EQ-019 status=201 score=50 classe=Medio
+[0019] tipo=valido    equip=EQ-020 status=201 score=30 classe=Baixo
+[0020] tipo=valido    equip=EQ-021 status=201 score=26 classe=Baixo
+[0021] tipo=valido    equip=EQ-022 status=201 score=28 classe=Baixo
+[0022] tipo=valido    equip=EQ-023 status=201 score=74 classe=Alto
+[0023] tipo=valido    equip=EQ-024 status=201 score=27 classe=Baixo
+[0024] tipo=valido    equip=EQ-025 status=201 score=25 classe=Baixo
+[0025] tipo=valido    equip=EQ-026 status=201 score=38 classe=Medio
+[0026] tipo=valido    equip=EQ-027 status=201 score=22 classe=Baixo
+[0027] tipo=valido    equip=EQ-028 status=201 score=21 classe=Baixo
+[0028] tipo=valido    equip=EQ-029 status=201 score=22 classe=Baixo
+[0029] tipo=valido    equip=EQ-030 status=201 score=24 classe=Baixo
+[0030] tipo=valido    equip=EQ-031 status=201 score=22 classe=Baixo
+[0031] tipo=valido    equip=EQ-032 status=201 score=20 classe=Baixo
+[0032] tipo=valido    equip=EQ-033 status=201 score=19 classe=Baixo
+[0033] tipo=valido    equip=EQ-034 status=201 score=35 classe=Medio
+[0034] tipo=valido    equip=EQ-035 status=201 score=21 classe=Baixo
+[0035] tipo=valido    equip=EQ-036 status=201 score=19 classe=Baixo
+[0036] tipo=valido    equip=EQ-037 status=201 score=33 classe=Medio
+[0037] tipo=valido    equip=EQ-038 status=201 score=37 classe=Medio
+[0038] tipo=valido    equip=EQ-039 status=201 score=33 classe=Medio
+[0039] tipo=valido    equip=EQ-040 status=201 score=26 classe=Baixo
+[0040] tipo=valido    equip=EQ-041 status=201 score=23 classe=Baixo
+[0041] tipo=valido    equip=EQ-042 status=201 score=24 classe=Baixo
+[0042] tipo=valido    equip=EQ-043 status=201 score=25 classe=Baixo
+[0043] tipo=valido    equip=EQ-044 status=201 score=24 classe=Baixo
+[0044] tipo=valido    equip=EQ-045 status=201 score=25 classe=Baixo
+[0045] tipo=valido    equip=EQ-046 status=201 score=43 classe=Medio
+[0046] tipo=valido    equip=EQ-047 status=201 score=21 classe=Baixo
+[0047] tipo=valido    equip=EQ-048 status=201 score=29 classe=Baixo
+[0048] tipo=valido    equip=EQ-049 status=201 score=25 classe=Baixo
+[0049] tipo=valido    equip=EQ-050 status=201 score=61 classe=Alto
+[0050] tipo=valido    equip=EQ-001 status=201 score=41 classe=Medio
+[0051] tipo=valido    equip=EQ-002 status=201 score=24 classe=Baixo
+[0052] tipo=valido    equip=EQ-003 status=201 score=43 classe=Medio
+[0053] tipo=valido    equip=EQ-004 status=201 score=22 classe=Baixo
+[0054] tipo=valido    equip=EQ-005 status=201 score=19 classe=Baixo
+[0055] tipo=valido    equip=EQ-006 status=201 score=22 classe=Baixo
+[0056] tipo=valido    equip=EQ-007 status=201 score=69 classe=Alto
+[0057] tipo=valido    equip=EQ-008 status=201 score=19 classe=Baixo
+[0058] tipo=valido    equip=EQ-009 status=201 score=50 classe=Medio
+[0059] tipo=valido    equip=EQ-010 status=201 score=20 classe=Baixo
+[0060] tipo=valido    equip=EQ-011 status=201 score=29 classe=Baixo
+[0061] tipo=valido    equip=EQ-012 status=201 score=56 classe=Medio
+[0062] tipo=valido    equip=EQ-013 status=201 score=18 classe=Baixo
+[0063] tipo=valido    equip=EQ-014 status=201 score=21 classe=Baixo
+[0064] tipo=valido    equip=EQ-015 status=201 score=19 classe=Baixo
+[0065] tipo=valido    equip=EQ-016 status=201 score=21 classe=Baixo
+[0066] tipo=valido    equip=EQ-017 status=201 score=25 classe=Baixo
+[0067] tipo=valido    equip=EQ-018 status=201 score=12 classe=Baixo
+[0068] tipo=valido    equip=EQ-019 status=201 score=27 classe=Baixo
+[0069] tipo=valido    equip=EQ-020 status=201 score=62 classe=Alto
+[0070] tipo=valido    equip=EQ-021 status=201 score=23 classe=Baixo
+[0071] tipo=valido    equip=EQ-022 status=201 score=35 classe=Medio
+[0072] tipo=valido    equip=EQ-023 status=201 score=30 classe=Baixo
+[0073] tipo=valido    equip=EQ-024 status=201 score=15 classe=Baixo
+[0074] tipo=valido    equip=EQ-025 status=201 score=35 classe=Medio
+[0075] tipo=valido    equip=EQ-026 status=201 score=47 classe=Medio
+[0076] tipo=valido    equip=EQ-027 status=201 score=26 classe=Baixo
+[0077] tipo=valido    equip=EQ-028 status=201 score=21 classe=Baixo
+[0078] tipo=valido    equip=EQ-029 status=201 score=29 classe=Baixo
+[0079] tipo=valido    equip=EQ-030 status=201 score=29 classe=Baixo
+[0080] tipo=valido    equip=EQ-031 status=201 score=30 classe=Baixo
+[0081] tipo=valido    equip=EQ-032 status=201 score=17 classe=Baixo
+[0082] tipo=valido    equip=EQ-033 status=201 score=25 classe=Baixo
+[0083] tipo=valido    equip=EQ-034 status=201 score=21 classe=Baixo
+[0084] tipo=valido    equip=EQ-035 status=201 score=24 classe=Baixo
+[0085] tipo=valido    equip=EQ-036 status=201 score=20 classe=Baixo
+[0086] tipo=valido    equip=EQ-037 status=201 score=28 classe=Baixo
+[0087] tipo=valido    equip=EQ-038 status=201 score=30 classe=Baixo
+[0088] tipo=valido    equip=EQ-039 status=201 score=17 classe=Baixo
+[0089] tipo=valido    equip=EQ-040 status=201 score=23 classe=Baixo
+[0090] tipo=invalido  equip=EQ-041 status=422 erro=validacao
+[0091] tipo=invalido  equip=EQ-042 status=422 erro=inconsistencia
+[0092] tipo=invalido  equip=EQ-999 status=422 erro=equip_desconhecido
+[0093] tipo=invalido  equip=EQ-044 status=422 erro=validacao
+[0094] tipo=invalido  equip=EQ-045 status=422 erro=inconsistencia
+[0095] tipo=duplicado equip=EQ-001 status=409 erro=duplicado
+[0096] tipo=duplicado equip=EQ-002 status=409 erro=duplicado
+[0097] tipo=duplicado equip=EQ-003 status=409 erro=duplicado
+[0098] tipo=duplicado equip=EQ-004 status=409 erro=duplicado
+[0099] tipo=duplicado equip=EQ-005 status=409 erro=duplicado
+enviados=100 aceitos=90 rejeitados=5 duplicados=5 alertas=0 (A+R+D=100 ✔)
+exit=0
