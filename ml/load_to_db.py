@@ -26,6 +26,17 @@ from ml.db import get_engine
 ROOT = Path(__file__).resolve().parents[1]
 
 
+REGIOES = ["Sorriso-MT", "Lucas do Rio Verde-MT", "Sinop-MT"]
+
+
+def _fazenda_regiao(equip_id: str) -> tuple[str, str]:
+    """Deriva fazenda/região deterministicamente a partir do número do equip_id."""
+    n = int(equip_id[-3:])
+    regiao = REGIOES[n % 3]
+    fazenda = f"FAZ-{(n % 6) + 1:02d}"
+    return fazenda, regiao
+
+
 def carregar(csv_path: str) -> None:
     df = pd.read_csv(csv_path)
     print(f"📂 {len(df):,} linhas lidas de {csv_path}")
@@ -37,7 +48,11 @@ def carregar(csv_path: str) -> None:
         df[["equip_id", "tipo_equip", "idade_equipamento_anos"]]
         .drop_duplicates(subset="equip_id")
         .sort_values("equip_id")
+        .copy()
     )
+    derivado = equipamentos["equip_id"].apply(_fazenda_regiao)
+    equipamentos["fazenda"] = derivado.apply(lambda t: t[0])
+    equipamentos["regiao"] = derivado.apply(lambda t: t[1])
 
     # --- 2) leituras_telemetria (fato) ---
     leituras_cols = [
@@ -49,6 +64,7 @@ def carregar(csv_path: str) -> None:
         "dias_desde_manutencao", "experiencia_operador_anos",
     ]
     leituras = df[leituras_cols].copy()
+    leituras["origem"] = "dataset"
 
     # --- 3) sinistros (rótulo) ---
     sinistros = pd.DataFrame({
@@ -61,8 +77,8 @@ def carregar(csv_path: str) -> None:
     with engine.begin() as conn:
         # Limpa tabelas (re-ingestão idempotente) respeitando FKs
         conn.execute(text(
-            "TRUNCATE scores_risco, sinistros, leituras_telemetria, equipamentos "
-            "RESTART IDENTITY CASCADE"
+            "TRUNCATE logs_uso, leituras_rejeitadas, alertas, scores_risco, "
+            "sinistros, leituras_telemetria, equipamentos RESTART IDENTITY CASCADE"
         ))
 
         equipamentos.to_sql("equipamentos", conn, if_exists="append", index=False)
@@ -75,6 +91,14 @@ def carregar(csv_path: str) -> None:
         sinistros.to_sql("sinistros", conn, if_exists="append",
                          index=False, chunksize=2000, method="multi")
         print(f"   ✅ sinistros:           {len(sinistros):>6,}")
+
+        # A carga usa ids explícitos (1..N) — reposiciona a sequência da
+        # coluna IDENTITY para que as próximas leituras via API/simulador
+        # continuem a numeração sem colidir com o dataset.
+        conn.execute(text(
+            "SELECT setval(pg_get_serial_sequence('leituras_telemetria', 'id'), "
+            "(SELECT max(id) FROM leituras_telemetria))"
+        ))
 
     # Confirma contagens
     with engine.connect() as conn:

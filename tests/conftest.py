@@ -41,10 +41,11 @@ CHAVES_TESTE = {
     "seguradora": "seg-test-0001",
     "admin": "adm-test-0001",
 }
-os.environ.setdefault(
-    "AGROGUARD_API_KEYS",
-    ",".join(f"{p[:3]}01:{p}:{s}" for p, s in CHAVES_TESTE.items()),
-)
+# Atribuição direta (não `setdefault`): o `.env` de desenvolvimento também define
+# AGROGUARD_API_KEYS, e o `load_dotenv(..., override=False)` acima já o injeta em
+# os.environ antes desta linha — sem isso, as chaves de teste nunca venceriam e os
+# testes autenticariam (por acidente) com os segredos de dev do .env.
+os.environ["AGROGUARD_API_KEYS"] = ",".join(f"{p[:3]}01:{p}:{s}" for p, s in CHAVES_TESTE.items())
 
 
 # ---------------------------------------------------------------------------
