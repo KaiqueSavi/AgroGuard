@@ -22,9 +22,9 @@ import streamlit as st
 
 # Permite importar ml/db.py e ml/features.py
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "ml"))
+sys.path.insert(0, str(ROOT))
 
-from features import CLASSES_ORDER, ALERT_THRESHOLD  # noqa: E402
+from ml.features import CLASSES_ORDER, ALERT_THRESHOLD  # noqa: E402
 
 CLASSE_CORES = {
     "Baixo": "#2e7d32",

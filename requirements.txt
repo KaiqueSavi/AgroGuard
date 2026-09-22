@@ -1,5 +1,5 @@
 # ============================================================
-# AgroGuard IA — dependências (Sprint 2)
+# AgroGuard IA — dependências (Sprints 2–4)
 # Python 3.11+  |  instalar:  pip install -r requirements.txt
 # ============================================================
 
@@ -20,6 +20,15 @@ seaborn>=0.13
 SQLAlchemy>=2.0
 psycopg2-binary>=2.9
 python-dotenv>=1.0
+
+# --- Backend / API (Sprint 3) ---
+fastapi>=0.115
+pydantic>=2.7
+uvicorn>=0.30
+
+# --- Testes (Sprint 4) ---
+pytest>=8
+httpx>=0.27
 
 # --- Dashboard / front-end básico ---
 streamlit>=1.33

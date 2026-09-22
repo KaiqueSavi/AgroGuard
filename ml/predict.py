@@ -20,8 +20,8 @@ import joblib
 import pandas as pd
 from sqlalchemy import text
 
-from db import get_engine
-from features import FEATURE_COLUMNS, ALERT_THRESHOLD, MODEL_VERSION, CLASSES_ORDER
+from ml.db import get_engine
+from ml.features import FEATURE_COLUMNS, ALERT_THRESHOLD, MODEL_VERSION, CLASSES_ORDER
 
 ROOT = Path(__file__).resolve().parents[1]
 MODELS_DIR = ROOT / "ml" / "models"

@@ -21,7 +21,7 @@ from pathlib import Path
 import pandas as pd
 from sqlalchemy import text
 
-from db import get_engine
+from ml.db import get_engine
 
 ROOT = Path(__file__).resolve().parents[1]
 
