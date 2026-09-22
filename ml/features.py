@@ -51,4 +51,4 @@ CLASSES_ORDER = ["Baixo", "Medio", "Alto", "Critico"]
 ALERT_THRESHOLD = 80
 
 # Versão do modelo registrada junto aos scores persistidos
-MODEL_VERSION = "v0.2"
+MODEL_VERSION = "v0.3"

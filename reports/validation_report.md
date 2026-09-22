@@ -1,10 +1,82 @@
 # 📊 Relatório de Validação Estatística — AgroGuard IA
 
 > **Projeto:** AgroGuard IA — Inteligência preditiva de riscos em equipamentos agrícolas
-> **Contexto:** Challenge Sompo Seguros × FIAP — entrega da **Sprint 2** (de 4)
-> **Versão dos modelos:** `v0.2` · **Seed:** `42` (reprodutível) · **Fonte das métricas:** `reports/metrics.json`
+> **Contexto:** Challenge Sompo Seguros × FIAP — entrega da **Sprint 4** (de 4)
+> **Versão dos modelos:** `v0.3` (ver §0) · **Seed:** `42` (reprodutível) · **Fonte das métricas:** `reports/metrics.json`
 
 Este relatório documenta a validação estatística dos modelos de Machine Learning do AgroGuard IA. Todos os números reportados aqui foram extraídos diretamente do pipeline de treino/avaliação (`ml/train.py`) e das consultas de validação de negócio no PostgreSQL (`ml/run_queries.py`, `sql/queries.sql`).
+
+> ℹ️ As seções **1 a 9** abaixo documentam a entrega original da **Sprint 2 (v0.2)** e foram mantidas como registro histórico. A **§0** a seguir traz a atualização **v0.3 (Sprint 3-4)** — refinamento de dados, ajuste final do modelo e explicabilidade — com números reais extraídos de `reports/metrics.json` (`modelo_versao = v0.3`).
+
+---
+
+## 0. Atualização v0.3 (Sprint 3-4) — refinamento de dados, ajuste final e explicabilidade
+
+### 0.1 O que mudou
+
+1. **Pipeline de preparação de dados** (`ml/preparacao.py`), rodado ANTES do split: remove duplicatas exatas e por chave de negócio (`equip_id`, `data_hora`), imputa faltantes (mediana por `tipo_equip` para numéricas, moda para categóricas), clipa valores fora da faixa do schema e rejeita linhas com chave ausente ou categoria inválida. Relatório completo em `reports/data_quality.json`.
+2. **Ajuste final do regressor de score**: busca em grade (24 combinações de `n_estimators` × `learning_rate` × `max_depth` × `subsample`) avaliada na **validação** (nunca no teste), seleção pelo **MAE(val)**, e avaliação **única** no teste após o refit em treino+validação.
+3. **Classe de risco: regressão + faixas em vez de classificador direto.** A classe "Critico" tem só **43/10.000** exemplos (6 no teste) — pouco para um classificador direto aprender bem. A v0.3 deriva a classe a partir do **score previsto** pelas mesmas faixas de negócio usadas no gerador (`pd.cut(score, [-1,30,60,80,101])`), a mesma regra já congelada em `ml.inferencia.classe_por_score`. O classificador direto (estilo v0.2) foi mantido e reavaliado lado a lado só para comparação honesta — ver §0.3.
+4. **Validação cruzada corrigida.** A v0.2 rodava a CV de 5 folds, por engano, **só no split de teste (1.500 linhas)** — código morto e estatisticamente errado (`ml/train.py:164-166` na v0.2). A v0.3 roda a CV em **treino+validação (8.500 linhas)**, tanto para o RMSE do regressor quanto para o F1-macro da classe derivada (treina em 4 folds, prediz o score no 5º, converte para classe pelas faixas).
+5. **Explicabilidade por contrafactual** (`ml/explicabilidade.py`, sem SHAP): para cada leitura, cada feature é neutralizada (substituída pela mediana/moda do treino) e o score é reprevisto; a diferença é a contribuição da feature. Os 3 fatores de maior contribuição absoluta ficam em `fatores_principais`, devolvidos por `ml.inferencia.prever()` e persistidos por `ml.predict.py` quando a coluna existir no schema do banco.
+6. **Análise do limiar de alerta** (score ≥ 80): precision/recall/F1 contra o score real e contra a classe Crítico real, taxa de sinistro real acima/abaixo do limiar, e uma tabela de limiares alternativos (70/75/80/85) para justificar a escolha de 80.
+
+### 0.2 Regressor de score — grid e resultado
+
+Grade avaliada: `n_estimators ∈ {200, 400}` × `learning_rate ∈ {0.05, 0.1}` × `max_depth ∈ {2, 3, 4}` × `subsample ∈ {0.8, 1.0}` (24 combinações, tabela completa em `reports/metrics.json` → `regressor_score.grid_busca`).
+
+**Melhor configuração (por MAE na validação):** `n_estimators=400, learning_rate=0.1, max_depth=2, subsample=0.8` (MAE-val = 2,5669).
+
+| Métrica (teste) | v0.2 | **v0.3** | Δ |
+|---|---:|---:|---:|
+| R² | 0,9361 | **0,9430** | +0,0069 |
+| RMSE | 3,39 | **3,204** | −0,186 |
+| MAE | 2,66 | **2,495** | −0,165 |
+| MAE — faixa crítica (score real 70–90) | — | **3,172** | novo |
+| CV(5 folds, treino+val) RMSE | — (CV da v0.2 era inválida) | **3,243 ± 0,037** | corrigido |
+
+### 0.3 Classe de risco — comparação honesta (`comparacao_classe`)
+
+| Métrica (teste) | classificador_direto_v02 | **regressao_faixas_v03** |
+|---|---:|---:|
+| Accuracy | 0,8547 | **0,8773** |
+| F1-macro | 0,6632 | **0,8171** |
+| Recall Critico | 0,1667 | **0,6667** |
+| Precision Critico | 0,25 | **0,6667** |
+| Recall Alto∪Critico (score real > 60) | 0,7907 | **0,8721** |
+| CV(5) F1-macro | — (CV da v0.2 era inválida) | **0,8222 ± 0,0407** |
+
+> A abordagem **regressão + faixas** ganha em toda métrica de classe: ao invés de aprender a classe rara diretamente, ela herda a precisão do regressor (que tem 8.500 exemplos para aprender o score contínuo, em vez de 43 exemplos de "Critico"). Ambos os modelos continuam sendo salvos (`reg_score.joblib` e `clf_classe.joblib`, este último mantido por compatibilidade) — ver `docs/model-card.md` §v0.3.
+
+### 0.4 Análise do limiar de alerta (score ≥ 80)
+
+| | precision | recall | F1 |
+|---|---:|---:|---:|
+| vs. score real ≥ 80 | 0,6667 | 0,5714 | 0,6154 |
+| vs. classe Crítico real | 0,6667 | 0,6667 | 0,6667 |
+
+Taxa de sinistro real: **66,67%** entre as leituras acima do limiar vs. **9,30%** abaixo — separação forte de risco.
+
+**Tabela de limiares alternativos** (mesmo teste, 1.500 linhas):
+
+| Limiar | Precision | Recall | F1 |
+|---:|---:|---:|---:|
+| 70 | 0,8621 | 0,8065 | 0,8333 |
+| 75 | 0,9286 | 0,8125 | 0,8667 |
+| **80** | **0,6667** | **0,5714** | **0,6154** |
+| 85 | 0,5000 | 0,3333 | 0,4000 |
+
+> No teste de 1.500 linhas, limiares mais baixos (70/75) têm F1 melhor — mas operam sobre poucos positivos reais (amostra pequena de score alto), e **80** continua o limiar de negócio (definido em `ALERT_THRESHOLD`, `ml/features.py`) por coincidir com a borda "Alto/Critico" e por ser mais conservador quanto a falsos alertas em produção. Ver limitação em §0.5.
+
+### 0.5 Qualidade dos dados
+
+Rodando `ml/preparacao.py` sobre `data/synthetic_dataset.csv` (10.000 linhas, já limpo por construção): **0 duplicatas, 0 faltantes, 0 fora de faixa, 0 rejeitadas** — o pipeline de preparação foi validado com casos sintéticos de sujeira em `tests/test_preparacao.py` (duplicatas exatas/por chave, faltantes por mediana, clipagem, categoria inválida, DataFrame vazio). Relatório completo (mesmo formato, para qualquer lote de entrada): `reports/data_quality.json`.
+
+### 0.6 Limitações (honestas, sem inflar resultados)
+
+- **Classe "Critico" continua rara no teste (6 linhas)** — mesmo com recall subindo de 0,1667 (v0.2) para 0,6667 (v0.3), o número absoluto de acertos/erros é pequeno (4 acertos em 6), então o recall é estatisticamente **instável**: uma leitura a mais ou a menos muda o número em ~17 pontos percentuais. O alerta operacional continua ancorado no **score** (contínuo, R²=0,943), não na classe rara.
+- **Dados 100% sintéticos** — `risco_score`/`classe_risco` são função determinística do gerador; validação com dados reais da Sompo segue prevista para uma fase futura.
+- A escolha do limiar 80 é uma decisão de **negócio** (conservadora), não a que maximiza F1 no teste atual — ver tabela em §0.4.
 
 ---
 
@@ -259,8 +331,10 @@ Em coerência com o rigor acadêmico do Challenge, registramos as limitações s
 
 ### 📎 Referências do repositório
 
-- Métricas brutas: `reports/metrics.json` (`modelo_versao = v0.2`, `seed = 42`)
+- Métricas brutas: `reports/metrics.json` (histórico v0.2 acima; atualização v0.3 na §0, `modelo_versao = v0.3`, `seed = 42`)
+- Qualidade de dados (v0.3): `reports/data_quality.json` · pipeline: `ml/preparacao.py`
+- Explicabilidade (v0.3): `ml/explicabilidade.py` (contrafactual, sem SHAP)
 - Pipeline de treino/avaliação: `ml/train.py`
 - Consultas de validação (Q1..Q6): `sql/queries.sql` · execução: `ml/run_queries.py`
 - Esquema do banco (DDL): `sql/schema.sql`
-- Figuras: `reports/figures/`
+- Figuras: `reports/figures/` (matriz de confusão v0.3 em `confusion_matrix.png`, v0.2 em `confusion_matrix_clf_v02.png`)

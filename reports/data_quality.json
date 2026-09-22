@@ -1,0 +1,10 @@
+{
+  "linhas_entrada": 10000,
+  "linhas_saida": 10000,
+  "duplicatas_exatas": 0,
+  "duplicatas_chave": 0,
+  "faltantes_preenchidos": {},
+  "valores_clipados": {},
+  "rejeitadas": 0,
+  "motivos": {}
+}

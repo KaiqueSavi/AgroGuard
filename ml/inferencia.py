@@ -26,6 +26,7 @@ from typing import Any
 import joblib
 import pandas as pd
 
+from ml.explicabilidade import fatores_principais as _fatores_principais
 from ml.features import ALERT_THRESHOLD, CLASSES_ORDER, FEATURE_COLUMNS, MODEL_VERSION
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -108,13 +109,28 @@ def prever(modelos: Modelos, df: pd.DataFrame) -> pd.DataFrame:
     X = df[FEATURE_COLUMNS].copy()
     score = modelos.regressor.predict(X).clip(0, 100).round().astype(int)
 
+    if modelos.baseline:
+        fatores = [
+            _fatores_principais(modelos.regressor, X.iloc[[i]], modelos.baseline)
+            for i in range(len(X))
+        ]
+    else:
+        fatores = [[] for _ in range(len(X))]
+
     return pd.DataFrame(
         {
             "risco_score": score,
             "classe_risco": [classe_por_score(s) for s in score],
             "alerta": score >= ALERT_THRESHOLD,
-            "fatores_principais": [[] for _ in range(len(X))],   # preenchido pela v0.3 (ml/explicabilidade.py)
+            "fatores_principais": fatores,
             "modelo_versao": modelos.versao,
         },
         index=df.index,
     )
+
+
+def prever_uma(modelos: Modelos, registro: dict) -> dict:
+    """Conveniência: prediz UMA leitura (dict de features) e devolve um dict
+    (mesmas chaves de `prever`). Útil para a API, que recebe um registro por vez."""
+    resultado = prever(modelos, pd.DataFrame([registro]))
+    return resultado.iloc[0].to_dict()
