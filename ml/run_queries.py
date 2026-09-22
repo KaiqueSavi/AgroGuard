@@ -16,7 +16,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from db import get_engine
+from ml.db import get_engine
 
 ROOT = Path(__file__).resolve().parents[1]
 QUERIES_FILE = ROOT / "sql" / "queries.sql"

@@ -30,19 +30,19 @@ echo -e "\n▶ [2/7] Gerando dataset simulado (seed=42)…"
 python data/generate_dataset.py --seed 42 --out data/synthetic_dataset.csv
 
 echo -e "\n▶ [3/7] Ingestão do CSV no PostgreSQL…"
-python ml/load_to_db.py
+python -m ml.load_to_db
 
 echo -e "\n▶ [4/7] Análise exploratória (EDA)…"
-python ml/eda.py
+python -m ml.eda
 
 echo -e "\n▶ [5/7] Treino + validação dos modelos…"
-python ml/train.py --seed 42
+python -m ml.train --seed 42
 
 echo -e "\n▶ [6/7] Inferência → grava scores no banco…"
-python ml/predict.py
+python -m ml.predict
 
 echo -e "\n▶ [7/7] Consultas analíticas de risco…"
-python ml/run_queries.py
+python -m ml.run_queries
 
 echo -e "\n✅ Pipeline concluído."
 echo "   Dashboard:  streamlit run app/streamlit_app.py"

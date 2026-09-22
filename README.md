@@ -1,9 +1,9 @@
 # 🌾 AgroGuard IA — Inteligência Preditiva para Riscos em Equipamentos Agrícolas
 
-> **Challenge Sompo Seguros × FIAP — Sprint 2**
+> **Challenge Sompo Seguros × FIAP — Sprint 4 (entrega final)**
 > Solução baseada em dados e Inteligência Artificial para **identificar, prever e reduzir riscos operacionais e ambientais** relacionados ao uso de equipamentos agrícolas.
 
-![Status](https://img.shields.io/badge/Sprint-2%2F4-blue) ![Stack](https://img.shields.io/badge/Stack-Python%20%7C%20FastAPI%20%7C%20React-green) ![License](https://img.shields.io/badge/License-Acad%C3%AAmico-lightgrey)
+![Status](https://img.shields.io/badge/Sprint-4%2F4-blue) ![Stack](https://img.shields.io/badge/Stack-Python%20%7C%20FastAPI%20%7C%20PostgreSQL%20%7C%20Streamlit-green) ![Tests](https://img.shields.io/badge/pytest-68%20passed-brightgreen) ![License](https://img.shields.io/badge/License-Acad%C3%AAmico-lightgrey)
 
 ---
 
@@ -21,7 +21,11 @@
 
 ## 📋 Sumário
 
-- 🚀 [**Sprint 2 — Implementação da Inteligência de Dados**](#-sprint-2--implementação-da-inteligência-de-dados) ← **entrega atual**
+- ⚡ [**Como executar em 5 comandos**](#-como-executar-em-5-comandos)
+- 🏁 [**Sprint 4 — Consolidação e validação do MVP**](#-sprint-4--consolidação-e-validação-do-mvp) ← **entrega atual**
+- 🔗 [**Sprint 3 — Integração dos módulos (backend, banco, modelo, interface)**](#-sprint-3--integração-dos-módulos)
+- 🚀 [Sprint 2 — Implementação da Inteligência de Dados](#-sprint-2--implementação-da-inteligência-de-dados)
+- 📈 [Evolução do projeto nas 4 Sprints](#-evolução-do-projeto-nas-4-sprints)
 
 1. [Contexto do Desafio](#1-contexto-do-desafio)
 2. [O Problema](#2-o-problema)
@@ -37,6 +41,30 @@
 12. [Equipe e Divisão de Tarefas](#12-equipe-e-divisão-de-tarefas)
 13. [Vídeo de Apresentação](#13-vídeo-de-apresentação)
 14. [Como Navegar pelo Repositório](#14-como-navegar-pelo-repositório)
+
+---
+
+## ⚡ Como executar em 5 comandos
+
+> Pré-requisitos: Docker em execução e Python 3.11. Tudo roda **localmente** (PostgreSQL na porta `5433`, API na `8001`, dashboard na `8501`).
+
+```bash
+python3.11 -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt   # 1) ambiente
+cp .env.example .env                                                                      # 2) variáveis (chaves de API de desenvolvimento)
+docker compose up -d db && ./run_pipeline.sh                                              # 3) banco + dataset + treino v0.3 + scores em lote
+uvicorn agroguard.api.main:app --port 8001                                                # 4) API integradora (Swagger em http://localhost:8001/docs)
+streamlit run app/streamlit_app.py                                                        # 5) dashboard (http://localhost:8501)
+```
+
+Para ver o fluxo de ponta a ponta com dados chegando "ao vivo", em outro terminal:
+
+```bash
+python -m simulador.simulador_iot --n 100 --taxa-invalidos 0.05 --taxa-duplicados 0.05 --assinar   # fontes simuladas → API → banco → modelo → alertas
+python -m relatorios.gerar_relatorio                                                                  # relatório semanal em reports/relatorio_risco.md
+AGROGUARD_REQUIRE_DB=1 pytest -q                                                                      # suíte de testes (unitários + integração contra o banco local)
+```
+
+> ⚠️ Se a porta `5433` estiver ocupada, ajuste `POSTGRES_PORT` no `.env`; a API e os testes leem a mesma variável.
 
 ---
 
@@ -572,11 +600,190 @@ Figuras geradas pelo pipeline (em `reports/figures/`): a **matriz de confusão**
 - No gerador sintético, `risco_score` e `classe_risco` são **função determinística** — os modelos aprendem essa função latente a partir das *features* brutas (válido academicamente, documentado como limitação). Já o alvo **`sinistro` é estocástico** (AUC = 0,7489), representando um problema de ML mais "real".
 - **Dados 100% sintéticos**; validação cruzada com **dados reais está prevista para a Sprint 4**.
 
-### 📌 Pendências de entrega (equipe)
+### 📌 Pendências de entrega (equipe) — Sprint 2 (histórico)
 
-- [ ] **Convidar os tutores como colaboradores** do repositório: `nicollycrs` e `SabrinaOtoni`. ⚠️ Apenas o **dono do repositório** (`willbatista89`, admin) consegue enviar o convite — o Kaique é colaborador, não admin.
+- [x] **Convidar os tutores como colaboradores** — o repositório foi migrado para a conta do Kaique (`KaiqueSavi/Enterprise-Challenge-Sompo-AgroGuard`, privado), que agora envia os convites.
 - [ ] **Gravar o vídeo** (≤ 5 min, "não listado") e colar o link no README (placeholder abaixo).
 - [ ] **Preencher os nomes/RMs reais** da equipe na seção [Equipe e Divisão de Tarefas](#12-equipe-e-divisão-de-tarefas).
+
+---
+
+## 🏁 Sprint 4 — Consolidação e validação do MVP
+
+> **Challenge Sompo Seguros × FIAP — entrega 4 de 4.** As Sprints 3 e 4 foram desenvolvidas em conjunto e entregues em **22/09/2026** neste repositório (branch `sprint-3-4`, tags `sprint-3` e `sprint-4`). A Sprint 3 integrou os módulos; a Sprint 4 refinou, validou e documentou o MVP. Todos os números desta seção vêm de execuções reais registradas em `reports/`, `docs/prints/` e `docs/validacao.md`.
+
+### 🎯 O que a Sprint 4 pedia × o que foi entregue
+
+| Requisito FIAP | Entrega | Onde ver |
+|---|---|---|
+| **Refinamento do código e da arquitetura** — módulos, funções padronizadas, exceções | Backend organizado por contexto de negócio (`agroguard/telemetria`, `risco`, `alertas`, `relatorios`, `auditoria`), roteadores finos, hierarquia `ErroAgroGuard` → HTTP 401/403/409/422/429/503 sem stack trace; `ml/` virou pacote | `agroguard/`, `agroguard/erros.py`, `docs/architecture.md` |
+| **Engenharia de dados e modelo** — inconsistências, faltantes, duplicidades; ajuste final com métricas | `ml/preparacao.py` (dedup, imputação por tipo, clip de faixas, relatório `reports/data_quality.json`); **modelo v0.3**: grid na validação + classe derivada do score → **R² 0,943 · RMSE 3,20 · F1-macro 0,817 · recall Crítico 0,67** (v0.2: 0,936 · 3,39 · 0,663 · 0,17) | `reports/metrics.json` (`comparacao_v02_v03`), `docs/model-card.md` §11 |
+| **Validação da integração** — coleta confiável, sem perda ou corrupção | Simulador com eventos inválidos e duplicados propositais; teste de reconciliação exata (`enviados = aceitos + rejeitados + duplicados`), um score por leitura, score gravado == modelo recalculado, `classe == faixa(score)` | `tests/test_integracao.py`, `docs/validacao.md`, `docs/prints/` |
+| **Segurança e rastreabilidade** | Chaves por papel, rate limit, HMAC opcional, hash do payload; `request_id` em `logs_uso` → `leituras_telemetria` → `scores_risco` → `alertas`; `GET /auditoria/{request_id}` encadeia tudo | `docs/seguranca.md`, `agroguard/api/auth.py`, `agroguard/auditoria/` |
+| **Relatórios, alertas e visualização** — tendências por equipamento, região, operação | Dashboard com abas *Tendências* (dia/semana × equipamento/região/operação), *Alertas & recomendações* (critérios explícitos), *Equipamento* (histórico + fatores), *Auditoria*; relatório semanal Markdown + figuras (US05) | `app/streamlit_app.py`, `relatorios/gerar_relatorio.py`, `reports/relatorio_risco.md` |
+| **Documentação e validação final** | Este README, diagrama final, `docs/validacao.md` com a saída real dos testes, roteiro do vídeo | `docs/architecture.md`, `docs/roteiro-video.md` |
+
+### 🧠 Modelo v0.3 — o que mudou e por quê
+
+| Métrica (teste, 1.500 linhas) | v0.2 (Sprint 2) | **v0.3 (Sprint 4)** | Δ |
+|---|---|---|---|
+| R² do score | 0,9361 | **0,9430** | +0,007 |
+| RMSE do score | 3,39 | **3,20** | −0,19 |
+| MAE do score | 2,66 | **2,50** | −0,17 |
+| F1-macro da classe | 0,6632 | **0,8171** | +0,154 |
+| Recall da classe `Crítico` | 0,1667 | **0,6667** | +0,50 |
+
+- **Ajuste de hiperparâmetros na validação** (nunca no teste): grid de 24 configurações do `GradientBoostingRegressor`; melhor: `n_estimators=400, learning_rate=0.1, max_depth=2, subsample=0.8` (`ml/models/model_meta.json`).
+- **Classe derivada do score** pelas faixas de negócio (`≤30 Baixo · ≤60 Médio · ≤80 Alto · >80 Crítico`) em vez de um classificador separado: elimina a incoerência score × classe e resolve a classe rara (`Crítico` tem 43 linhas em 10.000). O classificador direto continua salvo como baseline (`comparacao_classe` em `metrics.json`).
+- **Validação cruzada corrigida**: na Sprint 2 a CV rodava só no conjunto de teste; agora roda em treino+validação (5 folds): RMSE 3,24 ± 0,04 e F1-macro 0,82 ± 0,04.
+- **Limiar de alerta mantido em 80** após análise dos limiares 70/75/80/85 (`alerta_analise` em `metrics.json`): taxa de sinistro real de 66,7 % acima do limiar contra 9,3 % abaixo.
+- **Explicabilidade**: cada score traz os 3 fatores que mais pesaram (`fatores_principais`), calculados por contrafactual (feature na mediana de treino → diferença em pontos). Ex.: `[{"fator":"precip_24h_mm","valor":69.9,"contribuicao_pts":32.6}, …]`.
+- **Limitações honestas**: apenas 6 linhas `Crítico` no teste (recall instável — por isso a CV e a métrica `Alto ∪ Crítico` também são reportadas); dados 100 % sintéticos.
+
+### ✅ Evidências de validação
+
+**Suíte de testes** — `AGROGUARD_REQUIRE_DB=1 pytest -q -rA` (saída completa em [`docs/prints/pytest_output.txt`](docs/prints/pytest_output.txt), execução de 22/09/2026):
+
+```text
+68 passed, 1 warning in 12.35s
+```
+
+| Arquivo | Testes | O que prova |
+|---|---|---|
+| `tests/test_preparacao.py` | 9 | duplicidades, faltantes, fora de faixa, categorias inválidas, dataset vazio |
+| `tests/test_inferencia.py` | 13 | faixas de classe, `alerta == score ≥ 80`, fatores principais, determinismo |
+| `tests/test_auth.py` | 9 | sem chave 401, chave errada 401, operador em auditoria 403, rate limit 429 (por chave e por IP), assinatura inválida 401, validação das chaves configuradas |
+| `tests/test_api.py` | 18 | POST válido (201 + leitura + score + log com o mesmo `request_id`), fora de faixa 422, duplicado 409, inconsistência 422, equipamento desconhecido 422, lote com validação por item, alerta com recomendações, histórico (mais recentes), tendências por grupo, rastreabilidade, erro interno com `request_id` e log, corpo grande 413 |
+| `tests/test_integracao.py` | 5 | **coleta sem perda** (200 eventos → 180 aceitos + 10 rejeitados + 10 duplicados, 200 linhas em `logs_uso`), **consistência** score gravado == modelo recalculado e `classe == faixa(score)`, lote, assinatura adulterada, rastreabilidade |
+| `tests/test_relatorio.py` | 14 | relatório semanal + figuras, normalização de JSONB, dashboard compila |
+
+Os testes de integração rodam contra o banco **local** `agroguard_test` (criado e recriado pela própria suíte), nunca contra dados reais. Um *revert check* foi feito na regra de duplicidade: desativando-a, o teste de duplicado falha (a `UNIQUE (equip_id, data_hora)` do banco vira a segunda linha de defesa e devolve 500 em vez de 409) — ou seja, o teste é sensível ao comportamento.
+
+**Fontes simuladas → API viva** — `python -m simulador.simulador_iot --n 100 --seed 42 --taxa-invalidos 0.05 --taxa-duplicados 0.05 --assinar` (saída em [`docs/prints/simulador_execucao.txt`](docs/prints/simulador_execucao.txt)):
+
+```text
+[0000] tipo=valido    equip=EQ-001 status=201 score=19 classe=Baixo
+[0001] tipo=valido    equip=EQ-002 status=201 score=26 classe=Baixo
+...
+[0098] tipo=duplicado equip=EQ-004 status=409 erro=duplicado
+[0099] tipo=duplicado equip=EQ-005 status=409 erro=duplicado
+enviados=100 aceitos=90 rejeitados=5 duplicados=5 alertas=0 (A+R+D=100 ✔)
+```
+
+Contagens no banco após a execução (`docs/validacao.md`): `leituras_telemetria` (origem simulador) = 90 · `scores_risco` = 90 · `logs_uso` = 100 (uma por requisição, inclusive as recusadas) · `leituras_rejeitadas` = 10 (2 validação, 2 inconsistência, 1 equipamento desconhecido, 5 duplicados). Nenhum evento se perdeu e nenhum entrou duas vezes. Detalhes, comandos de reprodução e limitações em [`docs/validacao.md`](docs/validacao.md).
+
+### 🖼️ Interface final
+
+Capturas reais do dashboard (validação em navegador em 22/09/2026 — 7 cenários, 0 erros de console, nenhuma requisição 4xx/5xx; execução registrada na seção Evidências):
+
+| Alertas & recomendações — critério explícito `risco_score >= 80`, recomendações com o critério que disparou | Tendências semanais por região (chave, período, leituras, score médio/pico, alertas, taxa de sinistro) + insight automático |
+|---|---|
+| ![Alertas](docs/prints/dashboard_alertas.png) | ![Tendências](docs/prints/dashboard_tendencias.png) |
+
+| Equipamento EQ-014 — evolução do score (US07) e fatores que pesaram em cada leitura | Auditoria — requisições registradas por status HTTP e leituras rejeitadas por motivo |
+|---|---|
+| ![Equipamento](docs/prints/dashboard_equipamento.png) | ![Auditoria](docs/prints/dashboard_auditoria.png) |
+
+Relatório semanal gerado por `python -m relatorios.gerar_relatorio` → [`reports/relatorio_risco.md`](reports/relatorio_risco.md) (top-5 equipamentos, tendência por região e por tipo de operação, alertas abertos e recomendações da semana) com as figuras `reports/figures/tendencia_*.png`.
+
+---
+
+## 🔗 Sprint 3 — Integração dos módulos
+
+> **Objetivo da Sprint 3:** transformar os componentes da Sprint 2 (dataset, banco, modelo, dashboard) em um **sistema único**: os dados entram, são armazenados e processados, o modelo gera o score e o sistema apresenta o resultado — com segurança e registros de uso.
+
+### 🔁 Evolução desde a Sprint 2
+
+| Item | Sprint 2 | Sprint 3 |
+|---|---|---|
+| **Entrada de dados** | CSV carregado em lote (`ml/load_to_db.py`) | **API `POST /telemetria`** (FastAPI) recebendo telemetria + ambiente + operação, e **simulador de fontes** (`simulador/`) que envia leituras contínuas |
+| **Backend** | scripts independentes | **`agroguard/`** orquestra entrada → banco → modelo → saída numa única transação por leitura |
+| **Modelo** | `predict.py` em lote | **`ml/inferencia.py`** — contrato único usado pela API e pelo lote; score + classe + alerta na hora (latência registrada) |
+| **Banco** | 4 tabelas | **schema v2**: `alertas`, `leituras_rejeitadas`, `logs_uso`, `fazenda`/`regiao`, hash e origem das leituras, `UNIQUE(equip_id, data_hora)` |
+| **Segurança** | nenhuma | **X-API-Key por papel** (dispositivo/operador/gestor/seguradora/admin), comparação em tempo constante, rate limit, assinatura HMAC opcional, segredos fora do git |
+| **Registros de uso** | nenhum | `logs_uso` (uma linha por requisição, inclusive erros) + `logs/agroguard.log` (JSON) + `request_id` em todas as tabelas |
+| **Interface** | dashboard Streamlit (mapa, ranking) | dashboard lendo as novas tabelas: **alertas com recomendações**, auditoria; Swagger em `/docs` para a Sompo |
+
+### 🔌 API integradora
+
+| Rota | Papéis | Função |
+|---|---|---|
+| `POST /telemetria` · `POST /telemetria/lote` | dispositivo, operador, admin | Recebe a leitura (validação de faixas + consistência + dedup), grava, pontua, alerta |
+| `GET /equipamentos` · `GET /equipamentos/{id}/scores` | gestor, seguradora, admin | Frota e histórico de score por equipamento (US07) |
+| `GET /alertas` · `POST /alertas/{id}/reconhecer` | gestor, seguradora, admin (reconhecer: gestor, admin) | Alertas com critério e recomendações (US01/US04) |
+| `GET /relatorios/tendencias?por=equipamento\|regiao\|operacao&janela=dia\|semana` | gestor, seguradora, admin | Tendências de risco |
+| `GET /auditoria/logs` · `/auditoria/rejeitadas` · `/auditoria/{request_id}` | admin | Registros de uso e rastreabilidade ponta a ponta |
+| `GET /health` · `GET /modelo/info` | público / admin, gestor, seguradora | Saúde e versão do modelo |
+
+Exemplo completo de requisição/resposta em [`docs/api.md`](docs/api.md). Resposta de uma leitura crítica:
+
+```json
+{"leitura_id": 10001, "equip_id": "EQ-014", "data_hora": "2026-09-21T23:30:00",
+ "risco_score": 99, "classe_risco": "Critico", "alerta": true, "nivel_alerta": "Critico",
+ "fatores_principais": [{"fator": "precip_24h_mm", "valor": 120.0, "contribuicao_pts": 28.8},
+                        {"fator": "umidade_solo", "valor": 0.95, "contribuicao_pts": 10.1},
+                        {"fator": "precip_prev_6h_mm", "valor": 15.0, "contribuicao_pts": 8.8}],
+ "recomendacoes": [{"acao": "ADIAR_OPERACAO", "criterio": "umidade_solo > 0.7 e dist_corpo_dagua_m < 100", "prioridade": "alta"},
+                   {"acao": "REDUZIR_VELOCIDADE", "criterio": "declividade_pct > 5 ou inclinacao_graus > 6", "prioridade": "alta"},
+                   {"acao": "ATENCAO_CHUVA", "criterio": "precip_24h_mm > 30 ou precip_prev_6h_mm > 10", "prioridade": "media"},
+                   {"acao": "INSPECAO_MECANICA", "criterio": "dias_desde_manutencao > 40 ou vibracao_g > 1.5", "prioridade": "media"},
+                   {"acao": "PAUSA_JORNADA", "criterio": "jornada_acumulada_h > 10", "prioridade": "media"}],
+ "regras_aplicadas": ["risco_score >= 80"], "modelo_versao": "v0.3",
+ "request_id": "6708a631-9642-4303-9e59-057ad8c44ba3", "latencia_ms": 107}
+```
+
+Reenviar a **mesma** leitura devolve `409 {"codigo": "duplicado"}`; `GET /auditoria/6708a631-…` (admin) devolve `log` (201) → `leitura` (id 10001) → `score` (99) → `alerta` (Crítico) — execução real registrada em 22/09/2026.
+
+### 🛡️ Segurança da informação — evidências
+
+| Controle | Implementação | Prova |
+|---|---|---|
+| Controle de acesso | `X-API-Key` → papel; permissões por rota | `tests/test_auth.py`: sem chave → 401, chave errada → 401, operador em `/auditoria` → 403 |
+| Proteção da API | rate limit por chave (429), erros sem stack trace, CORS fechado | `tests/test_auth.py::test_rate_limit*` |
+| Integridade | `payload_hash` SHA-256, `UNIQUE(equip_id, data_hora)` → 409, assinatura HMAC (`X-Signature`) | `tests/test_api.py` (duplicado), `tests/test_integracao.py` (assinatura adulterada → 401) |
+| Dados sensíveis | segredos só no `.env` (gitignored); logs gravam apenas o `kid`, nunca a chave | `agroguard/logs.py`, `.env.example` |
+| Registros de uso | `logs_uso` por requisição + `request_id` encadeado | `GET /auditoria/{request_id}` |
+
+Detalhes e o que fica para produção (JWT/MFA, TLS, criptografia em repouso) em [`docs/seguranca.md`](docs/seguranca.md).
+
+### 🗺️ Diagrama de arquitetura (entrada → banco → modelo → saída)
+
+```mermaid
+flowchart LR
+    SIM["📡 Fontes simuladas<br/>telemetria · ambiente · operação<br/>(simulador/)"] -->|"POST /telemetria + X-API-Key"| AUTH["🔐 auth<br/>papel · rate limit · HMAC"]
+    AUTH --> VAL["✅ validação<br/>faixas · consistência · dedup · hash"]
+    VAL -->|"rejeita"| REJ[("leituras_rejeitadas")]
+    VAL -->|"aceita"| LEI[("leituras_telemetria")]
+    LEI --> INF["🧠 ml.inferencia (v0.3)<br/>score · classe · fatores"]
+    INF --> SCO[("scores_risco")]
+    SCO --> ALE{"score ≥ 80?"}
+    ALE -->|"sim"| TAL[("alertas<br/>critério + recomendações")]
+    AUTH & VAL & INF -.->|"request_id"| LOG[("logs_uso")]
+    SCO & TAL & LOG --> DASH["📊 Streamlit<br/>visão geral · alertas · tendências · equipamento · auditoria"]
+    SCO & TAL --> SW["🔌 Swagger / API<br/>Sompo · gestor"]
+    SCO --> REL["📄 relatório semanal<br/>relatorios/"]
+```
+
+Diagrama detalhado, fluxo passo a passo e ADRs em [`docs/architecture.md`](docs/architecture.md).
+
+### 🖼️ Interface simples (Sprint 3) — dashboard e API
+
+| Visão geral — KPIs, mapa da frota por classe e ranking de risco (US04) | Swagger `/docs` — 12 rotas da API integradora |
+|---|---|
+| ![Visão geral](docs/prints/dashboard_visao_geral.png) | ![Swagger](docs/prints/swagger_docs.png) |
+
+`POST /telemetria` de uma leitura crítica pelo Swagger/curl → `201`, score 95, classe Crítico, alerta e recomendações (print: `docs/prints/swagger_telemetria_201.png`).
+
+---
+
+## 📈 Evolução do projeto nas 4 Sprints
+
+| Sprint | Foco (FIAP) | Entregue | Status |
+|---|---|---|---|
+| **1** | Entendimento do problema, proposta e arquitetura | Personas, user stories, dataset exemplo, diagrama, modelo proposto | ✅ |
+| **2** | Inteligência de dados | Dataset sintético (10.000 × 26), PostgreSQL, EDA, modelos v0.2, queries Q1..Q6, dashboard básico | ✅ |
+| **3** | Integração dos módulos (MVP ~60 %) | Backend FastAPI, schema v2, simulador de fontes, controle de acesso, registros de uso, dashboard com alertas, diagrama atualizado | ✅ (entregue com a Sprint 4) |
+| **4** | Consolidação e validação | Código modular + exceções, preparação de dados, modelo v0.3 (métricas justificadas), testes de integração/consistência, tendências e relatórios, README final | ✅ |
 
 ---
 
@@ -586,8 +793,8 @@ Figuras geradas pelo pipeline (em `reports/figures/`): a **matriz de confusão**
 |---|---|---|
 | **Sprint 1 ✅** | Proposta e arquitetura | README, personas, dataset exemplo, diagrama, modelo proposto |
 | **Sprint 2 ✅** | Dados e modelo base | Dataset simulado gerado, EDA, banco SQL (PostgreSQL), modelos treinados (R²=0,94 / acc=0,85), validação estatística, dashboard Streamlit — ver [🚀 Sprint 2](#-sprint-2--implementação-da-inteligência-de-dados) |
-| **Sprint 3** | Backend + API | API REST funcional, integração com modelo, simulador de IoT |
-| **Sprint 4** | Frontend + Demo | Dashboard web, mockup mobile, vídeo final, apresentação |
+| **Sprint 3 ✅** | Integração | Backend FastAPI + schema v2 + simulador + segurança + registros de uso — ver [🔗 Sprint 3](#-sprint-3--integração-dos-módulos) |
+| **Sprint 4 ✅** | Consolidação e validação | Modelo v0.3, preparação de dados, testes de integração, tendências/relatórios, README final, vídeo — ver [🏁 Sprint 4](#-sprint-4--consolidação-e-validação-do-mvp) |
 
 ### 11.1 Roadmap visual
 
@@ -600,37 +807,38 @@ gantt
     section Sprint 2
     Dataset + EDA + modelo MVP  :done,  s2, after s1, 21d
     section Sprint 3
-    API + integrações           :       s3, after s2, 21d
+    API + integrações           :done,  s3, 2026-09-08, 14d
     section Sprint 4
-    Frontend + demo final       :       s4, after s3, 21d
+    Consolidação + validação    :done,  s4, 2026-09-15, 14d
 ```
 
 ---
 
 ## 12. Equipe e Divisão de Tarefas
 
-| Integrante | RM | Função principal | Responsabilidades Sprint 1 |
+| Integrante | RM | Sprints 1 e 2 | Sprints 3 e 4 (esta entrega) |
 |---|---|---|---|
-| [Nome 1] | RMxxxxxx | Product Owner / Negócio | Personas, user stories, contexto |
-| [Nome 2] | RMxxxxxx | Data Scientist | Modelo preditivo, dataset simulado |
-| [Nome 3] | RMxxxxxx | Arquiteto / Backend | Arquitetura, fluxo de dados |
-| [Nome 4] | RMxxxxxx | Front-end / UX | Mockups, definição de telas |
-| [Nome 5] | RMxxxxxx | DevOps / Segurança | Infra proposta, segurança/LGPD |
+| **Kaique** | RM562072 | Dataset simulado, banco PostgreSQL, modelos v0.2, dashboard | **Desenvolvimento integral**: backend integrador (FastAPI), schema v2, segurança e auditoria, simulador de fontes, preparação de dados e modelo v0.3, testes de integração, dashboard v2 e relatórios, documentação (README, arquitetura, validação, roteiro do vídeo) |
+| Daniel | RM572559 | Proposta e arquitetura (Sprint 1) | — |
+| Willian | RM571013 | Proposta e arquitetura (Sprint 1); repositório | — |
+| Pedro | RM565326 | Proposta e arquitetura (Sprint 1) | — |
+| Vinícius | RM571574 | Proposta e arquitetura (Sprint 1) | — |
 
-> 🗂️ A gestão de tarefas é feita no **Trello**: [link do board]
+> As Sprints 3 e 4 foram desenvolvidas integralmente por **Kaique (RM562072)**, conforme o histórico de commits do branch `sprint-3-4`.
 
 ---
 
 ## 13. Vídeo de Apresentação
 
-🎥 **Link do vídeo (até 5 minutos, não-listado):** [inserir link do vídeo não-listado]
+🎥 **Sprint 4 — link do vídeo (até 5 minutos, não listado):** [inserir link do vídeo não-listado]
 
-**Roteiro coberto:**
-1. Problema entendido (0:00–1:00)
-2. Solução proposta e personas (1:00–2:30)
-3. Dados utilizados (2:30–3:30)
-4. Arquitetura inicial e modelo (3:30–4:30)
-5. Próximos passos (4:30–5:00)
+Roteiro minuto a minuto em [`docs/roteiro-video.md`](docs/roteiro-video.md): contexto → arquitetura → simulador enviando dados → Swagger (score, alerta, rastreabilidade, segurança) → dashboard (alertas, tendências, equipamento, auditoria) → métricas v0.3 e testes.
+
+### ✅ Checklist de entrega (equipe)
+
+- [ ] Gravar o vídeo (≤ 5 min, narração humana, YouTube "não listado") e colar o link acima.
+- [ ] Confirmar que o repositório é **privado** e que o perfil **`fiap-tutoria`** aceitou o convite de colaborador (o convite expira em 7 dias).
+- [ ] Não alterar o repositório após a data-limite (28/09/2026).
 
 ---
 
@@ -686,4 +894,4 @@ gantt
 ---
 
 > Projeto desenvolvido no Challenge Sompo × FIAP — turma [A/B] — 2026.
-> Conteúdo acadêmico, sujeito a evolução nas próximas sprints.
+> Conteúdo acadêmico — entrega final (Sprint 4).

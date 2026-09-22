@@ -27,7 +27,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-from features import NUMERIC_FEATURES, TARGET_SCORE, TARGET_SINISTRO
+from ml.features import NUMERIC_FEATURES, TARGET_SCORE, TARGET_SINISTRO
 
 ROOT = Path(__file__).resolve().parents[1]
 FIG_DIR = ROOT / "reports" / "figures"

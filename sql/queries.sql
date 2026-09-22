@@ -120,3 +120,51 @@ GROUP BY v.classe_risco
 ORDER BY CASE v.classe_risco
             WHEN 'Baixo' THEN 1 WHEN 'Medio' THEN 2
             WHEN 'Alto'  THEN 3 WHEN 'Critico' THEN 4 END;
+
+
+-- ----------------------------------------------------------------------------
+-- Q7 — Tendência semanal por EQUIPAMENTO (Sprint 3/4: backend integrador).
+--      Score médio, nº de alertas e taxa de sinistro por equipamento/semana.
+-- ----------------------------------------------------------------------------
+SELECT
+    v.equip_id,
+    date_trunc('week', v.data_hora)                               AS semana,
+    COUNT(*)                                                      AS leituras,
+    ROUND(AVG(v.risco_score), 1)                                  AS score_medio,
+    SUM(CASE WHEN v.alerta THEN 1 ELSE 0 END)                     AS alertas,
+    ROUND(100.0 * AVG(CASE WHEN v.sinistro THEN 1 ELSE 0 END), 2) AS taxa_sinistro_pct
+FROM vw_risco_completo v
+GROUP BY v.equip_id, date_trunc('week', v.data_hora)
+ORDER BY v.equip_id, semana;
+
+
+-- ----------------------------------------------------------------------------
+-- Q8 — Tendência semanal por REGIÃO (Sprint 3/4: backend integrador).
+--      Mesma métrica de Q7, agregada por região da frota.
+-- ----------------------------------------------------------------------------
+SELECT
+    v.regiao,
+    date_trunc('week', v.data_hora)                               AS semana,
+    COUNT(*)                                                      AS leituras,
+    ROUND(AVG(v.risco_score), 1)                                  AS score_medio,
+    SUM(CASE WHEN v.alerta THEN 1 ELSE 0 END)                     AS alertas,
+    ROUND(100.0 * AVG(CASE WHEN v.sinistro THEN 1 ELSE 0 END), 2) AS taxa_sinistro_pct
+FROM vw_risco_completo v
+GROUP BY v.regiao, date_trunc('week', v.data_hora)
+ORDER BY v.regiao, semana;
+
+
+-- ----------------------------------------------------------------------------
+-- Q9 — Tendência semanal por TIPO DE OPERAÇÃO (Sprint 3/4: backend integrador).
+--      Mesma métrica de Q7, agregada por tipo_operacao (campo|transporte|parado).
+-- ----------------------------------------------------------------------------
+SELECT
+    v.tipo_operacao,
+    date_trunc('week', v.data_hora)                               AS semana,
+    COUNT(*)                                                      AS leituras,
+    ROUND(AVG(v.risco_score), 1)                                  AS score_medio,
+    SUM(CASE WHEN v.alerta THEN 1 ELSE 0 END)                     AS alertas,
+    ROUND(100.0 * AVG(CASE WHEN v.sinistro THEN 1 ELSE 0 END), 2) AS taxa_sinistro_pct
+FROM vw_risco_completo v
+GROUP BY v.tipo_operacao, date_trunc('week', v.data_hora)
+ORDER BY v.tipo_operacao, semana;

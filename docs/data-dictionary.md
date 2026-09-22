@@ -199,6 +199,33 @@
 
 ---
 
+## Tabelas adicionadas nas Sprints 3/4 (`sql/schema.sql` v2)
+
+Além das 26 colunas do dataset (acima), o banco passou a registrar o ciclo de vida de cada leitura recebida pela API.
+
+| Tabela | Coluna | Tipo | Descrição |
+|---|---|---|---|
+| `equipamentos` | `fazenda`, `regiao` | VARCHAR | Fazenda (FAZ-01..06) e região (Sorriso-MT, Lucas do Rio Verde-MT, Sinop-MT) derivadas do `equip_id` — base das tendências por região |
+| `leituras_telemetria` | `origem` | VARCHAR | `dataset` (carga do CSV), `api` ou `simulador` |
+| | `recebido_em` | TIMESTAMP | Instante em que a API recebeu a leitura |
+| | `payload_hash` | CHAR(64) | SHA-256 do JSON canônico — integridade |
+| | `payload_bruto` | JSONB | Payload exatamente como chegou — auditoria |
+| | `request_id` | UUID | Correlação com `logs_uso`, `scores_risco` e `alertas` |
+| | `UNIQUE(equip_id, data_hora)` | — | Impede duplicidades |
+| `scores_risco` | `fatores_principais` | JSONB | Top-3 `[{fator, valor, contribuicao_pts}]` que mais pesaram no score |
+| | `recomendacoes` | JSONB | `[{acao, criterio, prioridade}]` da tabela de regras |
+| | `regras_aplicadas` | JSONB | Critérios literais que dispararam (ex.: `"risco_score >= 80"`) |
+| | `latencia_ms`, `request_id` | INT / UUID | Rastreabilidade da decisão |
+| `alertas` | `nivel`, `criterio`, `mensagem`, `recomendacoes`, `status` | — | Alerta gerado quando `risco_score >= 80`; `status` = `aberto` / `reconhecido` |
+| `leituras_rejeitadas` | `codigo`, `motivo`, `payload`, `payload_hash` | — | `validacao`, `inconsistencia`, `duplicado`, `equip_desconhecido`, `assinatura` |
+| `logs_uso` | `request_id`, `kid`, `papel`, `metodo`, `rota`, `status_http`, `duracao_ms`, `ip` | — | Uma linha por requisição à API, inclusive erros (401/403/422/429) |
+
+A view `vw_risco_completo` devolve **uma linha por leitura** (`DISTINCT ON (l.id)`, score mais recente) com `fazenda`, `regiao`, `fatores_principais`, `recomendacoes` e `modelo_versao`.
+
+### Contrato de entrada da API (`POST /telemetria`)
+
+O payload é aninhado por **fonte** — `equipamento`, `telemetria`, `ambiente`, `operacao` — com as mesmas faixas dos `CHECK` do banco (ver `agroguard/api/schemas.py` e `docs/api.md`). Regras cruzadas: `parado` ⇒ `velocidade_kmh < 1`; `transporte` ⇒ `velocidade_kmh ≥ 5`; `umidade_solo > 0,9` sem chuva é inconsistente; `data_hora` no máximo 5 min no futuro.
+
 ## Observações sobre o dataset
 
 - **Distribuição típica gerada (seed=42):**

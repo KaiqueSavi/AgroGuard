@@ -4,6 +4,115 @@
 
 ---
 
+## Arquitetura Consolidada — Sprints 3 e 4 (MVP integrado e validado)
+
+> 🎯 Esta seção descreve o que **está implementado e rodando** ao final do Challenge. A Sprint 3 integrou os módulos em um fluxo contínuo (**entrada → banco → modelo → saída**) por meio de um backend Python; a Sprint 4 consolidou o MVP: código modular com tratamento de exceções, pipeline de preparação de dados, modelo v0.3, testes de integração, rastreabilidade e relatórios de tendência. A seção "Sprint 2" abaixo é mantida como histórico.
+
+### Fluxo de ponta a ponta
+
+```mermaid
+flowchart LR
+    subgraph FONTES["📡 Fontes de dados (simuladas)"]
+        direction TB
+        TEL["Telemetria IoT<br/>GPS · velocidade · inclinação · vibração"]
+        AMB["Ambiente<br/>chuva 24h/6h · umidade do solo · vento · água · declive"]
+        OPE["Operação<br/>tipo · turno · jornada · manutenção · experiência"]
+        SIM["simulador/simulador_iot.py<br/>eventos válidos + inválidos + duplicados"]
+        TEL & AMB & OPE --> SIM
+    end
+
+    subgraph API["🔌 Backend integrador — agroguard/ (FastAPI)"]
+        direction TB
+        AUTH["api/auth.py<br/>X-API-Key · papéis · rate limit · HMAC"]
+        VAL["api/schemas.py + telemetria/servico.py<br/>validação de faixas · consistência · dedup · hash"]
+        RISCO["risco/servico.py → ml/inferencia.py<br/>score 0–100 · classe por faixa · fatores"]
+        ALERTA["alertas/servico.py<br/>critério risco_score ≥ 80 · recomendações"]
+        AUDIT["auditoria/servico.py<br/>request_id · logs_uso"]
+        AUTH --> VAL --> RISCO --> ALERTA
+        AUTH -.-> AUDIT
+        VAL -.-> AUDIT
+    end
+
+    subgraph DB["🐘 PostgreSQL 16 (docker compose · sql/schema.sql v2)"]
+        direction TB
+        T_LEI["leituras_telemetria"]
+        T_SCO["scores_risco<br/>fatores_principais · recomendacoes"]
+        T_ALE["alertas"]
+        T_REJ["leituras_rejeitadas"]
+        T_LOG["logs_uso"]
+        VIEW["vw_risco_completo"]
+    end
+
+    subgraph ML["🧠 Modelo v0.3 — ml/"]
+        direction TB
+        PREP["preparacao.py<br/>duplicidades · faltantes · fora de faixa"]
+        TRAIN["train.py<br/>GradientBoostingRegressor (grid na validação)"]
+        ART[("ml/models/*.joblib<br/>baseline_features.json")]
+        PREP --> TRAIN --> ART
+    end
+
+    subgraph SAIDA["📊 Saída para o usuário"]
+        direction TB
+        DASH["app/streamlit_app.py<br/>visão geral · alertas · tendências · equipamento · auditoria"]
+        REL["relatorios/gerar_relatorio.py<br/>relatório semanal (US05)"]
+        SWAG["/docs (OpenAPI)<br/>consulta pela Sompo (US07)"]
+    end
+
+    SIM -->|"POST /telemetria<br/>(X-API-Key)"| AUTH
+    VAL -->|"aceita"| T_LEI
+    VAL -->|"rejeita"| T_REJ
+    RISCO --> T_SCO
+    ALERTA --> T_ALE
+    AUDIT --> T_LOG
+    ART --> RISCO
+    T_LEI & T_SCO & T_ALE --> VIEW
+    VIEW --> DASH & REL
+    T_LOG & T_REJ --> DASH
+    T_SCO & T_ALE -->|"GET /equipamentos/{id}/scores<br/>GET /alertas · GET /auditoria/{request_id}"| SWAG
+```
+
+### Como uma leitura atravessa o sistema (uma transação)
+
+1. **Entrada** — o simulador (ou um dispositivo) envia `POST /telemetria` com o payload aninhado `{equipamento, telemetria, ambiente, operacao}` e o header `X-API-Key` (opcionalmente `X-Signature`, HMAC-SHA256 do corpo).
+2. **Segurança** — `api/auth.py` hasheia a chave, compara em tempo constante, resolve o papel (`dispositivo`, `operador`, `gestor`, `seguradora`, `admin`), aplica o rate limit por chave e valida a assinatura.
+3. **Validação** — `api/schemas.py` valida tipos e faixas (espelham os `CHECK` do banco); `telemetria/servico.py` aplica regras cruzadas (ex.: `parado` ⇒ velocidade < 1), calcula o `payload_hash` (SHA-256 do JSON canônico) e rejeita duplicidades por `(equip_id, data_hora)`. Toda rejeição vira uma linha em `leituras_rejeitadas` com o código do motivo.
+4. **Persistência** — a leitura entra em `leituras_telemetria` com `origem`, `recebido_em`, `payload_bruto` e `request_id`.
+5. **Modelo** — `risco/servico.py` monta as 16 features e chama `ml.inferencia.prever`: score (regressor v0.3), classe pelas faixas de negócio (`≤30 Baixo · ≤60 Médio · ≤80 Alto · >80 Crítico`), fatores principais (delta vs. baseline) e recomendações (tabela de regras explícitas). Grava em `scores_risco`.
+6. **Alerta** — `alertas/servico.py` aplica o critério literal `risco_score >= 80`, grava em `alertas` (nível, critério, mensagem, recomendações) e devolve tudo na resposta `201`.
+7. **Auditoria** — o middleware grava uma linha em `logs_uso` por requisição (inclusive 401/403/422) com o mesmo `request_id`, que também vai no header `X-Request-Id` e nas tabelas acima; `GET /auditoria/{request_id}` encadeia log → leitura → score → alerta.
+8. **Saída** — o dashboard e o relatório leem `vw_risco_completo`, `alertas`, `logs_uso` e `leituras_rejeitadas`; a Sompo consulta o histórico via API.
+
+Se qualquer etapa entre 4 e 6 falhar, a transação é desfeita e a leitura **não** fica pela metade no banco.
+
+### Componente → Tecnologia → Arquivo (Sprints 3/4)
+
+| Etapa | Tecnologia | Arquivo real |
+|---|---|---|
+| Fontes de dados (telemetria, ambiente, operação) | Python (amostragem do dataset + jitter), Open-Meteo opcional | `simulador/fontes/*.py`, `simulador/clima.py`, `simulador/simulador_iot.py` |
+| API / orquestração do fluxo | FastAPI + Pydantic v2 | `agroguard/api/main.py`, `rotas_*.py`, `schemas.py` |
+| Controle de acesso e proteção da API | X-API-Key + papéis, `hmac.compare_digest`, token bucket, HMAC opcional | `agroguard/api/auth.py`, `agroguard/config.py` |
+| Regras de negócio | serviços por contexto (telemetria, risco, alertas, relatórios, auditoria) | `agroguard/<contexto>/servico.py` |
+| Tratamento de exceções | hierarquia `ErroAgroGuard` → HTTP 401/403/409/422/429/503, sem stack trace | `agroguard/erros.py`, handlers em `api/main.py` |
+| Persistência | PostgreSQL 16 (docker compose), DDL idempotente | `sql/schema.sql`, `agroguard/db.py`, `ml/db.py` |
+| Preparação de dados | pandas — duplicidades, faltantes, fora de faixa | `ml/preparacao.py` → `reports/data_quality.json` |
+| Modelo v0.3 | scikit-learn `GradientBoostingRegressor` (grid na validação) + classe por faixas | `ml/train.py`, `ml/inferencia.py`, `ml/explicabilidade.py` |
+| Scoring em lote (idempotente) | Python | `ml/predict.py` |
+| Consultas analíticas | SQL Q1..Q9 | `sql/queries.sql`, `ml/run_queries.py` |
+| Interface | Streamlit (5 abas) | `app/streamlit_app.py`, `app/consultas.py` |
+| Relatórios | Markdown + matplotlib | `relatorios/gerar_relatorio.py` → `reports/relatorio_risco.md` |
+| Validação | pytest (unitários + integração contra o banco local `agroguard_test`) | `tests/` |
+| Registros de uso / rastreabilidade | tabela `logs_uso` + `logs/agroguard.log` (JSON lines) | `agroguard/logs.py`, `agroguard/auditoria/servico.py` |
+
+### Decisões técnicas das Sprints 3/4 (ADRs)
+
+- **ADR-006 — HTTP/REST em vez de MQTT no protótipo.** O broker MQTT continua na arquitetura-alvo; no MVP a ingestão é `POST /telemetria`, o que permite validar, autenticar e auditar cada leitura com as disciplinas do primeiro ano e sem infraestrutura extra. Trade-off: sem QoS/offline; mitigado pelo simulador que reenvia e pela idempotência (dedup por `equip_id` + `data_hora`).
+- **ADR-007 — Chave de API por papel, sem JWT/OAuth.** Cinco papéis com permissões por rota, segredos fora do git, comparação em tempo constante, rate limit e assinatura HMAC opcional. Suficiente para o MVP e auditável; JWT/MFA ficam para a produção (ver `docs/seguranca.md`).
+- **ADR-008 — Classe derivada do score, não de um classificador separado.** A classe é uma política de negócio sobre o score (as mesmas faixas usadas no dataset); derivá-la do regressor ajustado elimina a inconsistência entre score e classe e elevou o recall de `Crítico` de 0,17 para 0,67 (`reports/metrics.json`). O classificador direto é mantido como baseline comparativo.
+- **ADR-009 — Explicabilidade por contrafactual simples (delta vs. baseline).** Sem SHAP: para cada feature, o score é recalculado com a feature na mediana de treino; a diferença em pontos é a contribuição. Barato, determinístico e legível pelo operador.
+- **ADR-010 — Uma transação por leitura e rejeições em transação própria.** Leitura, score e alerta nascem juntos ou não nascem; a rejeição é gravada fora da transação principal para sobreviver ao rollback e manter a trilha de auditoria completa.
+
+---
+
 ## Arquitetura Consolidada — Sprint 2 (implementação atual)
 
 > 🎯 Esta seção documenta o que **de fato foi implementado e está rodando** na Sprint 2 (entrega 2 de 4 do Challenge Sompo Seguros × FIAP). As seções 1 a 8 descrevem a **arquitetura-alvo** (visão de produto na nuvem); aqui descrevemos o **protótipo executável** local que valida essa visão.
@@ -387,6 +496,6 @@ flowchart LR
 |---|---|---|
 | 1 | Arquitetura proposta (este doc) | ✅ Concluída |
 | 2 | PoC local com Docker Compose, modelo treinado em dataset simulado | ✅ Concluída (ver seção "Arquitetura Consolidada — Sprint 2") |
-| 3 | API real + simulador IoT + integração com clima real | ⏳ Planejada |
-| 4 | Deploy em staging na AWS, dashboard funcional, demo end-to-end | ⏳ Planejada |
+| 3 | Backend integrador (FastAPI), simulador de fontes, segurança e auditoria | ✅ Concluída (ver seção "Sprints 3 e 4") |
+| 4 | Refinamento (módulos, exceções, preparação de dados, modelo v0.3), testes de integração, tendências e relatórios | ✅ Concluída (ver seção "Sprints 3 e 4") |
 | Pós-Challenge | Edge real, retreino automático, integração com core Sompo | 🔭 Futuro |

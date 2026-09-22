@@ -1,0 +1,148 @@
+....................................................................     [100%]
+=============================== warnings summary ===============================
+tests/test_api.py::test_post_telemetria_valida_retorna_201
+  /Users/kaiquesavi/Documents/Github/agroguard-sprint2/.venv/lib/python3.11/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+==================================== PASSES ====================================
+___________________ test_post_telemetria_valida_retorna_201 ____________________
+---------------------------- Captured stdout setup -----------------------------
+{"ts": "2026-09-22T13:53:35.782389+00:00", "nivel": "INFO", "evento": "modelos_carregados", "campos": {"modelo_versao": "vtest"}}
+------------------------------ Captured log setup ------------------------------
+INFO     agroguard:logs.py:69 modelos_carregados
+____________ test_excecao_nao_tratada_retorna_500_com_header_e_log _____________
+----------------------------- Captured stdout call -----------------------------
+{"ts": "2026-09-22T13:53:36.075292+00:00", "nivel": "INFO", "evento": "modelos_carregados", "campos": {"modelo_versao": "vtest"}}
+{"ts": "2026-09-22T13:53:36.079079+00:00", "nivel": "ERROR", "evento": "erro_nao_tratado", "campos": {"request_id": "35c6cf6e-4451-46bb-804d-ef2b64658ea4", "erro": "falha proposital de teste", "tipo": "RuntimeError"}}
+------------------------------ Captured log call -------------------------------
+INFO     agroguard:logs.py:69 modelos_carregados
+ERROR    agroguard:logs.py:69 erro_nao_tratado
+___________________________ test_rate_limit_excedido ___________________________
+----------------------------- Captured stdout call -----------------------------
+{"ts": "2026-09-22T13:53:36.268149+00:00", "nivel": "WARNING", "evento": "limite_excedido", "campos": {"request_id": "2c1f37f0-fcca-4ba2-b3bd-910ace684803", "metodo": "GET", "rota": "/alertas", "kid": null, "ip": "testclient"}}
+------------------------------ Captured log call -------------------------------
+WARNING  agroguard:logs.py:69 limite_excedido
+__________ test_chave_invalida_e_limitada_por_ip_sem_crescer_logs_uso __________
+----------------------------- Captured stdout call -----------------------------
+{"ts": "2026-09-22T13:53:36.283328+00:00", "nivel": "WARNING", "evento": "limite_excedido", "campos": {"request_id": "1b2cd274-a4c8-4d69-882d-589cadda0fc1", "metodo": "POST", "rota": "/telemetria", "kid": null, "ip": "testclient"}}
+{"ts": "2026-09-22T13:53:36.284243+00:00", "nivel": "WARNING", "evento": "limite_excedido", "campos": {"request_id": "e577f82c-92d8-4a22-8510-8795eb013aff", "metodo": "POST", "rota": "/telemetria", "kid": null, "ip": "testclient"}}
+{"ts": "2026-09-22T13:53:36.285245+00:00", "nivel": "WARNING", "evento": "limite_excedido", "campos": {"request_id": "fb4845f3-f5e6-4f57-bbfe-076e3fcdc51f", "metodo": "POST", "rota": "/telemetria", "kid": null, "ip": "testclient"}}
+{"ts": "2026-09-22T13:53:36.286492+00:00", "nivel": "WARNING", "evento": "limite_excedido", "campos": {"request_id": "c1ba9171-2580-4321-ae06-49a3ab2707de", "metodo": "POST", "rota": "/telemetria", "kid": null, "ip": "testclient"}}
+{"ts": "2026-09-22T13:53:36.287585+00:00", "nivel": "WARNING", "evento": "limite_excedido", "campos": {"request_id": "db50b7c8-ca15-487a-b453-1ebf9f40548b", "metodo": "POST", "rota": "/telemetria", "kid": null, "ip": "testclient"}}
+{"ts": "2026-09-22T13:53:36.288445+00:00", "nivel": "WARNING", "evento": "limite_excedido", "campos": {"request_id": "b6633e7a-13b2-4301-b1d3-4340be0c66d4", "metodo": "POST", "rota": "/telemetria", "kid": null, "ip": "testclient"}}
+{"ts": "2026-09-22T13:53:36.289119+00:00", "nivel": "WARNING", "evento": "limite_excedido", "campos": {"request_id": "a0212594-35e1-4b28-bb0b-4de00f55bf51", "metodo": "POST", "rota": "/telemetria", "kid": null, "ip": "testclient"}}
+{"ts": "2026-09-22T13:53:36.289800+00:00", "nivel": "WARNING", "evento": "limite_excedido", "campos": {"request_id": "8af29121-a8bd-4d28-a8c2-8e09e75d41a3", "metodo": "POST", "rota": "/telemetria", "kid": null, "ip": "testclient"}}
+{"ts": "2026-09-22T13:53:36.290591+00:00", "nivel": "WARNING", "evento": "limite_excedido", "campos": {"request_id": "482947d6-3c6c-434f-a055-a217c20f1dc3", "metodo": "POST", "rota": "/telemetria", "kid": null, "ip": "testclient"}}
+{"ts": "2026-09-22T13:53:36.291875+00:00", "nivel": "WARNING", "evento": "limite_excedido", "campos": {"request_id": "51b685c0-24f6-4c44-a182-d5a4bd1f1e09", "metodo": "POST", "rota": "/telemetria", "kid": null, "ip": "testclient"}}
+{"ts": "2026-09-22T13:53:36.292936+00:00", "nivel": "WARNING", "evento": "limite_excedido", "campos": {"request_id": "e186fbd5-b4b7-4223-b895-ba0533708ff5", "metodo": "POST", "rota": "/telemetria", "kid": null, "ip": "testclient"}}
+{"ts": "2026-09-22T13:53:36.293840+00:00", "nivel": "WARNING", "evento": "limite_excedido", "campos": {"request_id": "7cf1967e-6747-436c-99e6-fdd2fd40c08c", "metodo": "POST", "rota": "/telemetria", "kid": null, "ip": "testclient"}}
+{"ts": "2026-09-22T13:53:36.294954+00:00", "nivel": "WARNING", "evento": "limite_excedido", "campos": {"request_id": "1c3b29a1-cd76-4f26-8831-6f9d38f93b96", "metodo": "POST", "rota": "/telemetria", "kid": null, "ip": "testclient"}}
+{"ts": "2026-09-22T13:53:36.295943+00:00", "nivel": "WARNING", "evento": "limite_excedido", "campos": {"request_id": "ea8cbf9f-6b4e-4038-bd19-a722268783b2", "metodo": "POST", "rota": "/telemetria", "kid": null, "ip": "testclient"}}
+{"ts": "2026-09-22T13:53:36.296947+00:00", "nivel": "WARNING", "evento": "limite_excedido", "campos": {"request_id": "5b508779-393d-4cdb-a788-8ab1c7d39121", "metodo": "POST", "rota": "/telemetria", "kid": null, "ip": "testclient"}}
+{"ts": "2026-09-22T13:53:36.297978+00:00", "nivel": "WARNING", "evento": "limite_excedido", "campos": {"request_id": "d0b45b14-9a91-4d65-a34e-e6afef96545e", "metodo": "POST", "rota": "/telemetria", "kid": null, "ip": "testclient"}}
+{"ts": "2026-09-22T13:53:36.298853+00:00", "nivel": "WARNING", "evento": "limite_excedido", "campos": {"request_id": "9bcd541a-c528-425a-bd1e-673cb9004b10", "metodo": "POST", "rota": "/telemetria", "kid": null, "ip": "testclient"}}
+{"ts": "2026-09-22T13:53:36.299773+00:00", "nivel": "WARNING", "evento": "limite_excedido", "campos": {"request_id": "d8c6fba6-9f28-4b20-a052-618d3cd33300", "metodo": "POST", "rota": "/telemetria", "kid": null, "ip": "testclient"}}
+{"ts": "2026-09-22T13:53:36.300563+00:00", "nivel": "WARNING", "evento": "limite_excedido", "campos": {"request_id": "3f53b60b-136f-4da2-a1a8-25cd55d2bf5c", "metodo": "POST", "rota": "/telemetria", "kid": null, "ip": "testclient"}}
+{"ts": "2026-09-22T13:53:36.301288+00:00", "nivel": "WARNING", "evento": "limite_excedido", "campos": {"request_id": "953b9094-c066-45e8-bf80-3619a58b76d8", "metodo": "POST", "rota": "/telemetria", "kid": null, "ip": "testclient"}}
+{"ts": "2026-09-22T13:53:36.301943+00:00", "nivel": "WARNING", "evento": "limite_excedido", "campos": {"request_id": "c1c096db-2239-410d-8528-a21713648a28", "metodo": "POST", "rota": "/telemetria", "kid": null, "ip": "testclient"}}
+{"ts": "2026-09-22T13:53:36.302661+00:00", "nivel": "WARNING", "evento": "limite_excedido", "campos": {"request_id": "c2908c46-320b-40b5-8251-31e596de2a05", "metodo": "POST", "rota": "/telemetria", "kid": null, "ip": "testclient"}}
+{"ts": "2026-09-22T13:53:36.303296+00:00", "nivel": "WARNING", "evento": "limite_excedido", "campos": {"request_id": "5868b237-7417-4d63-a711-f75d3d1bb92e", "metodo": "POST", "rota": "/telemetria", "kid": null, "ip": "testclient"}}
+{"ts": "2026-09-22T13:53:36.303966+00:00", "nivel": "WARNING", "evento": "limite_excedido", "campos": {"request_id": "f7560020-17c8-4d68-81ff-f18a16b5045b", "metodo": "POST", "rota": "/telemetria", "kid": null, "ip": "testclient"}}
+{"ts": "2026-09-22T13:53:36.304924+00:00", "nivel": "WARNING", "evento": "limite_excedido", "campos": {"request_id": "c11c49c0-4087-4111-82f3-be43da81bd41", "metodo": "POST", "rota": "/telemetria", "kid": null, "ip": "testclient"}}
+------------------------------ Captured log call -------------------------------
+WARNING  agroguard:logs.py:69 limite_excedido
+WARNING  agroguard:logs.py:69 limite_excedido
+WARNING  agroguard:logs.py:69 limite_excedido
+WARNING  agroguard:logs.py:69 limite_excedido
+WARNING  agroguard:logs.py:69 limite_excedido
+WARNING  agroguard:logs.py:69 limite_excedido
+WARNING  agroguard:logs.py:69 limite_excedido
+WARNING  agroguard:logs.py:69 limite_excedido
+WARNING  agroguard:logs.py:69 limite_excedido
+WARNING  agroguard:logs.py:69 limite_excedido
+WARNING  agroguard:logs.py:69 limite_excedido
+WARNING  agroguard:logs.py:69 limite_excedido
+WARNING  agroguard:logs.py:69 limite_excedido
+WARNING  agroguard:logs.py:69 limite_excedido
+WARNING  agroguard:logs.py:69 limite_excedido
+WARNING  agroguard:logs.py:69 limite_excedido
+WARNING  agroguard:logs.py:69 limite_excedido
+WARNING  agroguard:logs.py:69 limite_excedido
+WARNING  agroguard:logs.py:69 limite_excedido
+WARNING  agroguard:logs.py:69 limite_excedido
+WARNING  agroguard:logs.py:69 limite_excedido
+WARNING  agroguard:logs.py:69 limite_excedido
+WARNING  agroguard:logs.py:69 limite_excedido
+WARNING  agroguard:logs.py:69 limite_excedido
+WARNING  agroguard:logs.py:69 limite_excedido
+=========================== short test summary info ============================
+PASSED tests/test_api.py::test_post_telemetria_valida_retorna_201
+PASSED tests/test_api.py::test_umidade_fora_da_faixa_retorna_422_e_registra_rejeicao
+PASSED tests/test_api.py::test_leitura_duplicada_retorna_409_e_mantem_uma_linha
+PASSED tests/test_api.py::test_parado_com_velocidade_alta_retorna_422_inconsistencia
+PASSED tests/test_api.py::test_equipamento_desconhecido_retorna_422
+PASSED tests/test_api.py::test_lote_com_um_item_invalido
+PASSED tests/test_api.py::test_alerta_critico_gera_recomendacoes_e_fica_rastreavel
+PASSED tests/test_api.py::test_tendencias_por_regiao
+PASSED tests/test_api.py::test_auditoria_encadeia_por_request_id
+PASSED tests/test_api.py::test_auditoria_request_id_desconhecido_retorna_404
+PASSED tests/test_api.py::test_health_retorna_modelo_versao
+PASSED tests/test_api.py::test_excecao_nao_tratada_retorna_500_com_header_e_log
+PASSED tests/test_api.py::test_lote_com_item_invalido_de_schema_nao_derruba_lote_inteiro
+PASSED tests/test_api.py::test_historico_scores_retorna_as_leituras_mais_recentes
+PASSED tests/test_api.py::test_auditoria_request_id_invalido_retorna_422
+PASSED tests/test_api.py::test_erro_validacao_nao_ecoa_input_do_payload
+PASSED tests/test_api.py::test_payload_grande_retorna_413
+PASSED tests/test_api.py::test_openapi_expoe_security_scheme_x_api_key
+PASSED tests/test_auth.py::test_sem_chave_retorna_401
+PASSED tests/test_auth.py::test_chave_errada_retorna_401
+PASSED tests/test_auth.py::test_operador_nao_acessa_auditoria
+PASSED tests/test_auth.py::test_seguradora_nao_envia_telemetria
+PASSED tests/test_auth.py::test_assinatura_invalida_retorna_401
+PASSED tests/test_auth.py::test_rate_limit_excedido
+PASSED tests/test_auth.py::test_chave_invalida_e_limitada_por_ip_sem_crescer_logs_uso
+PASSED tests/test_auth.py::test_parse_chaves_malformadas_levantam_valueerror
+PASSED tests/test_auth.py::test_parse_chaves_valida_parseia_normalmente
+PASSED tests/test_inferencia.py::test_classe_por_score_bins[0-Baixo]
+PASSED tests/test_inferencia.py::test_classe_por_score_bins[30-Baixo]
+PASSED tests/test_inferencia.py::test_classe_por_score_bins[31-Medio]
+PASSED tests/test_inferencia.py::test_classe_por_score_bins[60-Medio]
+PASSED tests/test_inferencia.py::test_classe_por_score_bins[61-Alto]
+PASSED tests/test_inferencia.py::test_classe_por_score_bins[80-Alto]
+PASSED tests/test_inferencia.py::test_classe_por_score_bins[81-Critico]
+PASSED tests/test_inferencia.py::test_classe_por_score_bins[100-Critico]
+PASSED tests/test_inferencia.py::test_prever_retorna_colunas_do_contrato_e_indice_original
+PASSED tests/test_inferencia.py::test_prever_e_deterministico
+PASSED tests/test_inferencia.py::test_fatores_principais_tem_ate_3_itens_ordenados_por_contribuicao_absoluta
+PASSED tests/test_inferencia.py::test_linha_molhada_perto_de_agua_declive_tem_score_maior_que_linha_seca_longe_plana
+PASSED tests/test_inferencia.py::test_prever_uma_devolve_um_dict_com_as_mesmas_chaves
+PASSED tests/test_integracao.py::test_reconciliacao_sem_perda
+PASSED tests/test_integracao.py::test_consistencia_score_modelo
+PASSED tests/test_integracao.py::test_lote_e_assinatura
+PASSED tests/test_integracao.py::test_rastreabilidade
+PASSED tests/test_integracao.py::test_simulador_determinista
+PASSED tests/test_preparacao.py::test_remove_duplicatas_exatas
+PASSED tests/test_preparacao.py::test_remove_duplicatas_por_chave_mesmo_com_outros_valores_diferentes
+PASSED tests/test_preparacao.py::test_faltantes_numericos_preenchidos_com_mediana_por_tipo_equip
+PASSED tests/test_preparacao.py::test_fora_de_faixa_e_clipado_e_contado
+PASSED tests/test_preparacao.py::test_estrito_levanta_em_vez_de_clipar
+PASSED tests/test_preparacao.py::test_categoria_invalida_e_rejeitada
+PASSED tests/test_preparacao.py::test_linhas_sem_chave_sao_rejeitadas
+PASSED tests/test_preparacao.py::test_dataframe_vazio_levanta_dados_invalidos
+PASSED tests/test_preparacao.py::test_todas_as_linhas_rejeitadas_levanta_dados_invalidos
+PASSED tests/test_relatorio.py::test_gerar_relatorio_cria_md_e_figuras_com_secoes_e_top5
+PASSED tests/test_relatorio.py::test_gerar_relatorio_sem_dados_nao_lanca
+PASSED tests/test_relatorio.py::test_tendencias_limite_conta_grupos_nao_linhas
+PASSED tests/test_relatorio.py::test_normalizar_jsonb[None-esperado0]
+PASSED tests/test_relatorio.py::test_normalizar_jsonb[valor1-esperado1]
+PASSED tests/test_relatorio.py::test_normalizar_jsonb[valor2-esperado2]
+PASSED tests/test_relatorio.py::test_normalizar_jsonb[valor3-esperado3]
+PASSED tests/test_relatorio.py::test_normalizar_jsonb[[]-esperado4]
+PASSED tests/test_relatorio.py::test_normalizar_jsonb[[{"acao": "MONITORAR"}]-esperado5]
+PASSED tests/test_relatorio.py::test_normalizar_jsonb[{"acao": "MONITORAR"}-esperado6]
+PASSED tests/test_relatorio.py::test_normalizar_jsonb[-esperado7]
+PASSED tests/test_relatorio.py::test_normalizar_jsonb[n\xe3o \xe9 json-esperado8]
+PASSED tests/test_relatorio.py::test_normalizar_jsonb_trata_nan_como_lista_vazia
+PASSED tests/test_relatorio.py::test_streamlit_app_compila
+68 passed, 1 warning in 12.35s
