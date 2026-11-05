@@ -601,8 +601,6 @@ Figuras geradas pelo pipeline (em `reports/figures/`): a **matriz de confusão**
 ### 📌 Pendências de entrega (equipe) — Sprint 2 (histórico)
 
 - [x] **Convidar os tutores como colaboradores** — o repositório foi migrado para a conta do Kaique (`KaiqueSavi/Enterprise-Challenge-Sompo-AgroGuard`, privado), que agora envia os convites.
-- [ ] **Gravar o vídeo** (≤ 5 min, "não listado") e colar o link no README (placeholder abaixo).
-- [ ] **Preencher os nomes/RMs reais** da equipe na seção [Equipe e Divisão de Tarefas](#12-equipe-e-divisão-de-tarefas).
 
 ---
 
@@ -824,15 +822,7 @@ gantt
 
 ## 13. Vídeo de Apresentação
 
-🎥 **Sprint 4 — link do vídeo (até 5 minutos, não listado):** [inserir link do vídeo não-listado]
-
 Roteiro minuto a minuto em [`docs/roteiro-video.md`](docs/roteiro-video.md): contexto → arquitetura → simulador enviando dados → Swagger (score, alerta, rastreabilidade, segurança) → dashboard (alertas, tendências, equipamento, auditoria) → métricas v0.3 e testes.
-
-### ✅ Checklist de entrega (equipe)
-
-- [ ] Gravar o vídeo (≤ 5 min, narração humana, YouTube "não listado") e colar o link acima.
-- [ ] Confirmar que o repositório é **privado** e que o perfil **`fiap-tutoria`** aceitou o convite de colaborador (o convite expira em 7 dias).
-- [ ] Não alterar o repositório após a data-limite (28/09/2026).
 
 ---
 
